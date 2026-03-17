@@ -1,0 +1,360 @@
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { RecordingStatus } from '../types';
+import { MIN_HEIGHT, MAX_HEIGHT } from '../utils/constants';
+import { useIpc } from './useIpc';
+import { invokeWithTimeout } from '../utils/ipc';
+
+const playRecordingFeedback = () => {
+  try {
+    const url = new URL('public/audio.wav', window.location.href).href;
+    const a = new Audio(url);
+    a.volume = 0.4;
+    a.play().catch(() => {});
+  } catch (_) {}
+};
+
+const CENTER_ORDER = [4, 5, 3, 6, 2, 7, 1, 8, 0, 9];
+
+export const useAudioRecording = () => {
+  const [status, setStatus] = useState<RecordingStatus>('idle');
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [context, setContext] = useState<string>('');
+  const ipcRenderer = useIpc();
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const statusRef = useRef<RecordingStatus>('idle');
+  const isCancelledRef = useRef<boolean>(false);
+  const barsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const waveAnimationRef = useRef<number | null>(null);
+
+  const cleanup = () => {
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    audioContextRef.current = null;
+    analyserRef.current = null;
+
+    barsRef.current.forEach((bar) => {
+      if (bar) bar.style.height = `${MIN_HEIGHT}px`;
+    });
+  };
+
+  const sendAudioToBackend = async (audioBlob: Blob, filename: string, capturedContext: string) => {
+    type Config = { BACKEND_URL?: string; FRONTEND_URL?: string; LOGIN_URL?: string };
+
+    const config = await invokeWithTimeout(
+      () => ipcRenderer.invoke('get-config'),
+      5000,
+      'IPC connection timeout. Please restart the app.'
+    ) as Config;
+    const token = await invokeWithTimeout(
+      () => ipcRenderer.invoke('get-auth-token'),
+      5000,
+      'IPC connection timeout. Please restart the app.'
+    ) as string | null;
+
+    if (!config?.BACKEND_URL || !token) {
+      throw new Error('Not authenticated. Please login.');
+    }
+
+    const formData = new FormData();
+    formData.append('audio', audioBlob, filename);
+    if (capturedContext) {
+      formData.append('context', capturedContext);
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+    let response;
+    try {
+      response = await fetch(`${config.BACKEND_URL}/api/v1/completion`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        throw new Error('Request timeout. Please try again.');
+      }
+      throw fetchError;
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (response.status === 401) throw new Error('Authentication expired. Please login again.');
+      throw new Error(errorData.error || `Request failed: ${response.statusText}`);
+    }
+
+    return response.json();
+  };
+
+  const startRecording = async () => {
+    if (statusRef.current !== 'idle') return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      audioChunksRef.current = [];
+      setStatus('recording');
+      statusRef.current = 'recording';
+      playRecordingFeedback();
+      const capturedContext = context.trim();
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+
+      const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+      const audioContext = new AudioContextClass();
+      const analyser = audioContext.createAnalyser();
+      const source = audioContext.createMediaStreamSource(stream);
+
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.5;
+      analyser.minDecibels = -90;
+      analyser.maxDecibels = -10;
+
+      source.connect(analyser);
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        if (isCancelledRef.current) {
+          isCancelledRef.current = false;
+          cleanup();
+          setStatus('idle');
+          statusRef.current = 'idle';
+          audioChunksRef.current = [];
+          return;
+        }
+
+        if (audioChunksRef.current.length > 0) {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+
+          if (audioBlob.size > 5000) {
+            playRecordingFeedback();
+            setStatus('processing');
+            statusRef.current = 'processing';
+            ipcRenderer.send('processing');
+
+            try {
+              const result = await sendAudioToBackend(audioBlob, 'audio.webm', capturedContext);
+              ipcRenderer.send('http-result', {
+                intent: result.intent,
+                response: result.response,
+                action: result.action,
+                transcription: result.transcription
+              });
+              setTimeout(() => { cleanup(); setContext(''); }, 100);
+            } catch (error) {
+              const msg = error instanceof Error ? error.message : 'Failed to process audio. Please try again.';
+              setErrorMessage(msg);
+              setStatus('idle');
+              statusRef.current = 'idle';
+              setTimeout(() => setErrorMessage(''), 5000);
+            }
+          } else {
+            cleanup();
+            setStatus('idle');
+            statusRef.current = 'idle';
+            setContext('');
+          }
+        } else {
+          cleanup();
+          setStatus('idle');
+          statusRef.current = 'idle';
+          setContext('');
+        }
+
+        audioChunksRef.current = [];
+      };
+
+      mediaRecorder.start(100);
+    } catch (error) {
+      setStatus('idle');
+      statusRef.current = 'idle';
+      setErrorMessage('Microphone access is required. Please enable it in system settings.');
+      setTimeout(() => setErrorMessage(''), 1500);
+      try { await ipcRenderer.invoke('reset-onboarding'); } catch {}
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && statusRef.current === 'recording') {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+    }
+  };
+
+
+  const cancelRecording = useCallback(() => {
+    isCancelledRef.current = true;
+
+    if (statusRef.current === 'recording') {
+      audioChunksRef.current = [];
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current = null;
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      cleanup();
+      setStatus('idle');
+      statusRef.current = 'idle';
+      isCancelledRef.current = false;
+      return;
+    }
+
+    if (statusRef.current === 'processing') {
+      ipcRenderer.send('cancel-processing');
+      cleanup();
+      setStatus('idle');
+      statusRef.current = 'idle';
+      isCancelledRef.current = false;
+      return;
+    }
+
+    cleanup();
+    setStatus('idle');
+    statusRef.current = 'idle';
+    isCancelledRef.current = false;
+  }, [ipcRenderer]);
+
+  useEffect(() => {
+    const handleProcessing = () => {
+      setStatus('processing');
+      statusRef.current = 'processing';
+    };
+
+    const handleProcessingComplete = () => {
+      if (isCancelledRef.current) {
+        cleanup();
+        isCancelledRef.current = false;
+      }
+      setStatus('idle');
+      statusRef.current = 'idle';
+    };
+
+    const handleError = (event: any, message: string) => {
+      if (statusRef.current === 'processing') {
+        setStatus('idle');
+        statusRef.current = 'idle';
+      }
+      setErrorMessage(message);
+      setTimeout(() => setErrorMessage(''), 1500);
+    };
+
+    const handleToggleRecording = async (event: any, targetApp: string) => {
+      if (statusRef.current === 'idle') {
+        await startRecording();
+      } else if (statusRef.current === 'recording') {
+        stopRecording();
+      }
+    };
+
+    const handleCancelRecording = () => {
+      cancelRecording();
+    };
+
+    ipcRenderer.on('processing', handleProcessing);
+    ipcRenderer.on('processing-complete', handleProcessingComplete);
+    ipcRenderer.on('error', handleError);
+    ipcRenderer.on('toggle-recording', handleToggleRecording);
+    ipcRenderer.on('cancel-recording', handleCancelRecording);
+
+    return () => {
+      ipcRenderer.removeListener('processing', handleProcessing);
+      ipcRenderer.removeListener('processing-complete', handleProcessingComplete);
+      ipcRenderer.removeListener('error', handleError);
+      ipcRenderer.removeListener('toggle-recording', handleToggleRecording);
+      ipcRenderer.removeListener('cancel-recording', handleCancelRecording);
+      cleanup();
+    };
+  }, [ipcRenderer, cancelRecording]);
+
+  useEffect(() => {
+    const isRecording = status === 'recording' && analyserRef.current;
+
+    if (!isRecording) {
+      if (waveAnimationRef.current) {
+        cancelAnimationFrame(waveAnimationRef.current);
+        waveAnimationRef.current = null;
+      }
+      barsRef.current.forEach((bar) => {
+        if (bar) bar.style.height = `${MIN_HEIGHT}px`;
+      });
+      return;
+    }
+
+    if (!barsRef.current.length) return;
+
+    const updateBars = () => {
+      if (statusRef.current !== 'recording' || !analyserRef.current) {
+        if (waveAnimationRef.current) {
+          cancelAnimationFrame(waveAnimationRef.current);
+          waveAnimationRef.current = null;
+        }
+        barsRef.current.forEach((bar) => {
+          if (bar) bar.style.height = `${MIN_HEIGHT}px`;
+        });
+        return;
+      }
+
+      const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+      analyserRef.current.getByteFrequencyData(dataArray);
+
+      CENTER_ORDER.forEach((barIndex, i) => {
+        const bar = barsRef.current[barIndex];
+        if (!bar) return;
+
+        const freqIndex = Math.floor(10 + (i * 8));
+        const raw = dataArray[freqIndex] / 255;
+        const value = Math.min(1, raw * 2.5);
+        const centerIntensity = 1 - Math.abs(i - CENTER_ORDER.length / 2) / (CENTER_ORDER.length / 2);
+        const height = MIN_HEIGHT + value * (MAX_HEIGHT - MIN_HEIGHT) * centerIntensity;
+
+        bar.style.height = `${Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, height))}px`;
+      });
+
+      waveAnimationRef.current = requestAnimationFrame(updateBars);
+    };
+
+    updateBars();
+
+    return () => {
+      if (waveAnimationRef.current) {
+        cancelAnimationFrame(waveAnimationRef.current);
+        waveAnimationRef.current = null;
+      }
+      barsRef.current.forEach((bar) => {
+        if (bar) bar.style.height = `${MIN_HEIGHT}px`;
+      });
+    };
+  }, [status]);
+
+  return {
+    status,
+    errorMessage,
+    barsRef,
+    cancelRecording,
+    setContext,
+    startRecording,
+  };
+};

@@ -1,0 +1,120 @@
+{
+  "name": "mily",
+  "version": "1.0.19",
+  "description": "mily",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:react": "node build.js",
+    "dev": "node build.js --watch & electron .",
+    "start": "npm run build:react && electron .",
+    "build": "export $(cat .env | xargs) && NODE_ENV=production npm run build:react && electron-builder --mac --x64 --arm64",
+    "dist": "export $(cat .env | xargs) && NODE_ENV=production npm run build:react && electron-builder --mac --x64 --arm64",
+    "upload": "export $(cat .env | xargs) && node scripts/upload-to-vercel.js",
+    "publish": "export $(cat .env | xargs) && NODE_ENV=production npm run build:react && electron-builder --mac --x64 --arm64 && npm run upload",
+    "version": "npm version patch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@vercel/blob": "^2.0.0",
+    "axios": "^1.6.0",
+    "dotenv": "^17.2.3",
+    "electron-store": "^11.0.2",
+    "electron-updater": "^6.6.2",
+    "form-data": "^4.0.0",
+    "iohook-macos": "^1.2.1",
+    "lucide-react": "^0.554.0",
+    "node-fetch": "^2.7.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@electron/notarize": "^2.5.0",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.6",
+    "@types/react-dom": "^19.2.3",
+    "electron": "^39.2.3",
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.27.0",
+    "esbuild-plugin-copy": "^2.1.1",
+    "typescript": "^5.9.3"
+  },
+  "build": {
+    "appId": "com.mily.app",
+    "productName": "Mily",
+    "publish": {
+      "provider": "generic",
+      "url": "https://k26riqmsptuevwtz.public.blob.vercel-storage.com"
+    },
+    "protocols": [
+      {
+        "name": "mily",
+        "schemes": [
+          "mily"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "public/logo.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "hardenedRuntime": true,
+      "entitlements": "scripts/entitlements.mac.plist",
+      "entitlementsInherit": "scripts/entitlements.mac.inherit.plist",
+      "gatekeeperAssess": false,
+      "notarize": {
+        "teamId": "76FZS6K46G"
+      }
+    },
+    "files": [
+      "main.js",
+      "config/**/*",
+      "ipc/**/*",
+      "services/**/*",
+      "store.js",
+      "windows.js",
+      "system-commands.js",
+      "public/**/*",
+      "dist/app.js",
+      "dist/main.js",
+      "app.html",
+      "main.html",
+      "package.json",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}",
+      "!**/*.map"
+    ],
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "afterSign": "scripts/notarize.js"
+  }
+}
