@@ -22,7 +22,6 @@ export interface Message {
   id: string;
   query: string;
   response: string;
-  intent: "transcribe" | "generate" | "command";
   tokens: number;
   audio: string | null;
   source: "desktop" | "mobile" | "web";
@@ -50,4 +49,3 @@ export interface MessagesResponse {
 }
 
 declare const window: Window & { require: (module: string) => any };
-

@@ -155,7 +155,6 @@ export const useAudioRecording = () => {
             try {
               const result = await sendAudioToBackend(audioBlob, 'audio.webm', capturedContext);
               ipcRenderer.send('http-result', {
-                intent: result.intent,
                 response: result.response,
                 action: result.action,
                 transcription: result.transcription
@@ -200,7 +199,6 @@ export const useAudioRecording = () => {
       mediaRecorderRef.current = null;
     }
   };
-
 
   const cancelRecording = useCallback(() => {
     isCancelledRef.current = true;

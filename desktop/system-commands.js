@@ -24,6 +24,41 @@ function safeAppName(name) {
 function pasteText(newText, targetApp) {
   clipboard.writeText(newText);
 
+  if (!targetApp || targetApp === "Electron" || targetApp === "Mily") {
+    const mainWin = windows.getSafeMainWindow();
+    if (mainWin && !mainWin.isDestroyed()) {
+      mainWin.webContents.executeJavaScript(`
+        const activeElement = document.activeElement;
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+          const text = \`${newText.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`;
+          const start = activeElement.selectionStart || 0;
+          const end = activeElement.selectionEnd || 0;
+          const currentValue = activeElement.value || '';
+          const newValue = currentValue.substring(0, start) + text + currentValue.substring(end);
+          activeElement.value = newValue;
+          activeElement.selectionStart = activeElement.selectionEnd = start + text.length;
+          activeElement.dispatchEvent(new Event('input', { bubbles: true }));
+          activeElement.dispatchEvent(new Event('change', { bubbles: true }));
+          true;
+        } else {
+          false;
+        }
+      `).then((handled) => {
+        if (!handled) {
+          mainWin.focus();
+          setTimeout(() => {
+            exec('osascript -e \'tell application "System Events" to keystroke "v" using command down\'', (error) => {
+              if (error) sendError("Failed to paste");
+            });
+          }, 100);
+        }
+      }).catch(() => {
+        sendError("Failed to paste");
+      });
+      return;
+    }
+  }
+
   const script = targetApp
     ? `tell application "${safeAppName(targetApp)}"
         activate
@@ -106,7 +141,7 @@ function executeSystemCommand(command) {
     if (command.url) {
       shell.openExternal(command.url).catch(() => sendError("Failed to open URL"));
     } else {
-      sendError("No URL provided in command");
+      sendError("No URL provided");
     }
     return;
   }
@@ -119,7 +154,7 @@ function executeSystemCommand(command) {
         if (error) sendError(`Failed to open ${command.app}. Make sure the app is installed.`);
       });
     } else {
-      sendError("No app name provided in command");
+      sendError("No app name provided");
     }
     return;
   }
@@ -127,15 +162,15 @@ function executeSystemCommand(command) {
     if (command.key) {
       pressKey(command.key, command.modifiers || []);
     } else {
-      sendError("No key provided in command");
+      sendError("No key provided");
     }
     return;
   }
-  if (command.action === "take_screenshot") {
-    takeScreenshot(command.type || "full");
+  if (command.action === "screenshot") {
+    takeScreenshot(command.mode || "full");
     return;
   }
-  sendError("Unknown command action");
+  sendError("Unknown action");
 }
 
 module.exports = {

@@ -82,8 +82,8 @@ function ModesInfoSection() {
               {shortcut}
             </kbd>
           </div>
-          <p className="text-xs font-garamond text-neutral-500">
-            Press once to start, again to stop. Press Esc to cancel.
+          <p className="text-sm font-garamond text-neutral-900 font-semibold leading-relaxed">
+            Press <kbd className="px-2 py-1 text-sm font-bold bg-neutral-900 text-white rounded">{shortcut}</kbd> to start recording, then press <kbd className="px-2 py-1 text-sm font-bold bg-neutral-900 text-white rounded">{shortcut}</kbd> again to stop. Press <kbd className="px-1.5 py-0.5 text-xs font-semibold bg-neutral-100 text-neutral-900 rounded border border-neutral-200">Esc</kbd> to cancel.
           </p>
         </div>
       </div>

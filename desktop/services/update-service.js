@@ -78,13 +78,8 @@ function setupIpcHandlers() {
   });
 
   ipcMain.on('install-update', () => {
-    const main = windows.getSafeMainWindow();
-    const input = windows.getSafeInputWindow();
-    if (main) {
-      main.removeAllListeners('close');
-      main.close();
-    }
-    if (input) input.close();
+    const { app } = require('electron');
+    app.isQuitting = true;
     autoUpdater.quitAndInstall(false, true);
   });
 

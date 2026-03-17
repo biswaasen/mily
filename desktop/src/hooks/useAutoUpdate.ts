@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useIpc } from './useIpc';
 
 export const useAutoUpdate = () => {
@@ -7,30 +7,35 @@ export const useAutoUpdate = () => {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const ipcRenderer = useIpc();
+  const downloadingRef = useRef(false);
 
   useEffect(() => {
-    const handleUpdateAvailable = (event: any, info: any) => {
+    const handleUpdateAvailable = () => {
+      downloadingRef.current = true;
       setUpdateAvailable(true);
       setUpdateError(null);
     };
 
     const handleUpdateDownloaded = () => {
+      downloadingRef.current = false;
       setUpdateDownloaded(true);
       setUpdateAvailable(false);
       setUpdateError(null);
       setDownloadProgress(100);
     };
 
-    const handleUpdateProgress = (event: any, progress: { percent: number }) => {
+    const handleUpdateProgress = (_: any, progress: { percent: number }) => {
       setDownloadProgress(Math.round(progress.percent));
     };
 
-    const handleUpdateError = (event: any, error: string) => {
+    const handleUpdateError = (_: any, error: string) => {
+      if (downloadingRef.current) return;
       setUpdateError(error);
       setUpdateAvailable(false);
     };
 
     const handleUpdateNotAvailable = () => {
+      downloadingRef.current = false;
       setUpdateAvailable(false);
       setUpdateError(null);
     };
@@ -58,7 +63,7 @@ export const useAutoUpdate = () => {
     ipcRenderer.invoke('check-for-updates');
   };
 
-  const clearError = () => {
+  const dismiss = () => {
     setUpdateError(null);
     setUpdateAvailable(false);
   };
@@ -70,7 +75,6 @@ export const useAutoUpdate = () => {
     updateError,
     installUpdate,
     checkForUpdates,
-    clearError,
+    dismiss,
   };
 };
-

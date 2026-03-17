@@ -26,20 +26,30 @@ export const HomeContent: React.FC<HomeContentProps> = ({
 }) => {
   const { formatShortcut } = useShortcut();
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-3xl mx-auto space-y-8 px-4 md:px-0">
       <div className="bg-gradient-to-br from-neutral-50 to-neutral-100/50 rounded-xl p-6 border border-neutral-200">
-        <h1 className="text-3xl font-garamond font-medium text-neutral-900 mb-4 tracking-tight">
+        <h1 className="text-2xl md:text-3xl font-garamond font-medium text-neutral-900 mb-4 tracking-tight">
           Welcome to Mily
         </h1>
         
-        <div className="bg-white rounded-lg p-4 border border-neutral-200 mb-5">
-          <div className="flex items-center gap-2 mb-2">
-            <kbd className="px-2 py-1 text-xs font-semibold bg-neutral-900 text-white rounded border border-neutral-800">
+        <div className="bg-gradient-to-br from-white to-neutral-50 rounded-xl px-6 py-5 border border-neutral-200 shadow-sm mb-5">
+          <p className="text-sm font-garamond tracking-[0.12em] text-neutral-500 uppercase mb-2">
+            Recording controls
+          </p>
+          <p className="text-base font-garamond text-neutral-800 leading-relaxed">
+            Press{" "}
+            <kbd className="inline-flex items-center px-3 py-1 text-sm font-semibold bg-neutral-900 text-white rounded-md shadow-sm mx-1">
               {formatShortcut()}
             </kbd>
-          </div>
-          <p className="text-xs font-garamond text-neutral-500 leading-relaxed">
-            Press to start recording, press again to stop. Press <kbd className="px-1 py-0.5 text-[10px] bg-neutral-100 rounded">Esc</kbd> to cancel.
+            to start recording, and press{" "}
+            <kbd className="inline-flex items-center px-3 py-1 text-sm font-semibold bg-neutral-900 text-white rounded-md shadow-sm mx-1">
+              {formatShortcut()}
+            </kbd>
+            again to stop. Press{" "}
+            <kbd className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold bg-neutral-100 text-neutral-800 rounded border border-neutral-300 mx-1">
+              Esc
+            </kbd>
+            to cancel.
           </p>
         </div>
 
@@ -77,7 +87,7 @@ export const HomeContent: React.FC<HomeContentProps> = ({
       <div>
         <h2 className="text-lg font-garamond font-medium text-neutral-900 mb-3">Memory</h2>
         <div className="flex flex-col gap-2 mb-4">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
               value={memoryKey}
@@ -101,7 +111,7 @@ export const HomeContent: React.FC<HomeContentProps> = ({
             <button
               onClick={onAddMemory}
               disabled={!memoryText.trim() || isAddingMemory}
-              className="px-4 py-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-garamond font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
+              className="px-4 py-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-garamond font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none w-full sm:w-auto"
             >
               Save
             </button>

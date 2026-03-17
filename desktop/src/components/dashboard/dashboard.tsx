@@ -153,7 +153,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }, [hasMore, loading, loadingMore, page, fetchMessages]);
 
   const handleCopy = useCallback(async (message: Message) => {
-    const text = message.intent === 'command' ? message.query || 'Command executed' : message.response || message.query;
+    const text = message.response || message.query;
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId(message.id);
@@ -196,10 +196,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
   if (!isAuthenticated) return null;
 
   return (
-    <div className="h-screen w-full bg-white flex">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} user={user} subscription={subscription} onLogout={onLogout} />
+    <div className="h-screen w-full bg-white flex flex-col md:flex-row">
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        user={user}
+        subscription={subscription}
+        onLogout={onLogout}
+      />
 
-      <div className="flex-1 flex flex-col relative">
+      <div className="flex-1 flex flex-col relative min-w-0">
         <div className="absolute top-0 left-0 right-0 h-12 pl-20 z-10" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties} />
         {(errorMessage || successMessage) && (
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
@@ -213,7 +219,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         )}
         <div
-          className="flex-1 overflow-auto p-8 pt-12"
+          className="flex-1 overflow-auto p-4 pt-12 md:p-8"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
         >
           <style>{`.flex-1.overflow-auto::-webkit-scrollbar { display: none; }`}</style>

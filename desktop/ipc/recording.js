@@ -66,19 +66,17 @@ function setupRecordingHandlers(ipcMain) {
     };
 
     try {
-      const { intent, action } = result;
+      const { action } = result;
+      const actionType = action?.type;
 
-      if (intent === "command" && action) {
-        const cmd = action;
-        if (cmd.action === "open_url" && !cmd.url) throw new Error("URL is required for open_url action");
-        if (cmd.action === "open_app" && !cmd.app) throw new Error("App name is required for open_app action");
-        if (cmd.action === "press_key" && !cmd.key) throw new Error("Key is required for press_key action");
-        if (!["open_url", "open_app", "press_key", "take_screenshot"].includes(cmd.action)) {
-          throw new Error("This action is not supported.");
-        }
+      if (actionType === "open_url" || actionType === "open_app" || actionType === "press_key" || actionType === "screenshot") {
+        const cmd = { action: actionType, ...action };
+        if (actionType === "open_url" && !action.url) throw new Error("URL is required");
+        if (actionType === "open_app" && !action.app) throw new Error("App name is required");
+        if (actionType === "press_key" && !action.key) throw new Error("Key is required");
         systemCommands.executeSystemCommand(cmd);
         sendComplete();
-      } else if (action?.shouldPaste) {
+      } else if (actionType === "paste") {
         setTimeout(() => {
           if (activeProcessingOps.has(operationId)) {
             systemCommands.pasteText(result.response, currentTargetApp);

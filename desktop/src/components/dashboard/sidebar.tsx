@@ -70,21 +70,24 @@ export const Sidebar: React.FC<SidebarProps> = React.memo(({ activeTab, onTabCha
   }, [subscription]);
 
   return (
-    <div className="w-56 bg-neutral-50 border-r border-neutral-200 flex flex-col h-full" style={{ paddingTop: '60px' }}>
-      <div className="flex items-center gap-2.5 mb-6 px-3 flex-shrink-0">
+    <div
+      className="w-full md:w-56 bg-neutral-50 border-b md:border-b-0 md:border-r border-neutral-200 flex flex-row md:flex-col h-auto md:h-full"
+      style={{ paddingTop: '60px' }}
+    >
+      <div className="flex items-center gap-2.5 mb-4 md:mb-6 px-3 flex-shrink-0">
         <div className="h-10 w-10 flex items-center justify-center rounded-lg overflow-hidden">
           <img src="public/logo.png" alt="Mily Logo" className="w-full h-full object-contain" />
         </div>
         <h1 className="text-xl font-garamond text-neutral-900">Mily</h1>
       </div>
 
-      <div className="flex-1 px-2 space-y-1.5 overflow-y-auto min-h-0">
+      <div className="flex-1 px-2 space-y-1.5 overflow-y-auto min-h-0 hidden md:block">
         <TabButton tab="home" icon={Home} label="Home" isActive={activeTab === 'home'} onClick={onTabChange} />
         <TabButton tab="messages" icon={MessageCircle} label="Messages" isActive={activeTab === 'messages'} onClick={onTabChange} />
         <TabButton tab="settings" icon={Settings} label="Settings" isActive={activeTab === 'settings'} onClick={onTabChange} />
       </div>
 
-      <div className="px-2 pb-4 space-y-3 mt-auto flex-shrink-0">
+      <div className="hidden md:block px-2 pb-4 space-y-3 mt-auto flex-shrink-0">
         <div className="bg-white rounded-xl border border-neutral-200 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-garamond text-neutral-600">Plan</span>

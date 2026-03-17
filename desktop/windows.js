@@ -4,6 +4,7 @@ const path = require("path");
 let mainWindow = null;
 let inputWindow = null;
 let positionUpdateTimeout = null;
+let isQuitting = false;
 
 function getSafeMainWindow() {
   return mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
@@ -11,6 +12,10 @@ function getSafeMainWindow() {
 
 function getSafeInputWindow() {
   return inputWindow && !inputWindow.isDestroyed() ? inputWindow : null;
+}
+
+function setQuitting(value) {
+  isQuitting = value;
 }
 
 function createMainWindow() {
@@ -55,8 +60,10 @@ function createMainWindow() {
   });
 
   mainWindow.on("close", (event) => {
-    event.preventDefault();
-    mainWindow.hide();
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
   });
 
   mainWindow.on("closed", () => {
@@ -118,7 +125,7 @@ function createInputWindow() {
 
   inputWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   inputWindow.loadFile("app.html");
-  
+
   inputWindow.once("ready-to-show", () => {
     updateInputWindowPosition();
     inputWindow.show();
@@ -132,7 +139,9 @@ function createInputWindow() {
   });
 
   inputWindow.on("close", (event) => {
-    event.preventDefault();
+    if (!isQuitting) {
+      event.preventDefault();
+    }
   });
 
   inputWindow.on("closed", () => {
@@ -178,6 +187,6 @@ module.exports = {
   createInputWindow,
   updateInputWindowPosition,
   showMainWindow,
-  setupFileWatchers
+  setupFileWatchers,
+  setQuitting
 };
-

@@ -11,30 +11,54 @@ const config = loadConfig();
 
 let pendingAuthUrl = null;
 
-function setupDockMenu() {
+function setupMenus() {
   if (process.platform !== "darwin") return;
+
+  const appMenu = Menu.buildFromTemplate([
+    {
+      label: app.name,
+      submenu: [
+        { role: "about" },
+        { type: "separator" },
+        { role: "hide" },
+        { role: "hideOthers" },
+        { role: "unhide" },
+        { type: "separator" },
+        { role: "quit" }
+      ]
+    },
+    {
+      label: "Window",
+      submenu: [
+        { role: "minimize" },
+        { role: "close" },
+        { type: "separator" },
+        {
+          label: "Show Dashboard",
+          accelerator: "CmdOrCtrl+Shift+D",
+          click: () => windows.showMainWindow()
+        }
+      ]
+    }
+  ]);
+  Menu.setApplicationMenu(appMenu);
 
   const dockMenu = Menu.buildFromTemplate([
     {
       label: "Show Dashboard",
-      click: () => {
-        windows.showMainWindow();
-      }
+      click: () => windows.showMainWindow()
     },
     {
       label: "Quit Mily",
-      click: () => {
-        app.quit();
-      }
+      click: () => app.quit()
     }
   ]);
-  
   app.dock.setMenu(dockMenu);
 }
 
 function processAuthUrl(url) {
   if (!url) return;
-  
+
   if (app.isReady()) {
     ipcHandlers.handleAuthCallback(url, config);
   } else {
@@ -44,11 +68,11 @@ function processAuthUrl(url) {
 
 function initializeApp() {
   app.setName("Mily");
-  
+
   if (process.platform === "darwin" && app.dock) {
     app.dock.show();
   }
-  
+
   if (process.defaultApp) {
     if (process.argv.length >= 2) {
       app.setAsDefaultProtocolClient("mily", process.execPath, [path.resolve(process.argv[1])]);
@@ -75,8 +99,8 @@ function initializeApp() {
   windows.createMainWindow();
   windows.setupFileWatchers();
   ipcHandlers.registerShortcut();
-  setupDockMenu();
-  
+  setupMenus();
+
   const authToken = store.getAuthToken();
   if (authToken) {
     windows.createInputWindow();
@@ -103,8 +127,9 @@ function initializeApp() {
   });
 
   app.on("before-quit", () => {
-    const main = windows.getSafeMainWindow();
-    if (main) main.removeAllListeners('close');
+    windows.setQuitting(true);
+    const input = windows.getSafeInputWindow();
+    if (input) input.destroy();
   });
 
   ipcHandlers.setupIpcHandlers(config);

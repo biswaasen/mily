@@ -1,17 +1,12 @@
 import React from 'react';
 import { Message } from '../../types';
 import { formatTime } from '../../utils/date';
-import { Pencil, Zap, Sparkles, Copy, Check } from 'lucide-react';
+import { MessageSquare, Copy, Check } from 'lucide-react';
 
 interface GroupedMessages {
   date: string;
   label: string;
   messages: Message[];
-}
-
-function getMessageDisplayText(message: Message): string {
-  if (message.intent === 'command') return message.query || 'Command executed';
-  return message.response || message.query;
 }
 
 interface MessageListProps {
@@ -66,29 +61,25 @@ export const MessageList: React.FC<MessageListProps> = ({
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0 mt-0.5">
-                        {message.intent === 'transcribe' && <Pencil className="h-4 w-4 text-purple-600" />}
-                        {message.intent === 'command' && <Zap className="h-4 w-4 text-orange-600" />}
-                        {message.intent === 'generate' && <Sparkles className="h-4 w-4 text-green-600" />}
+                        <MessageSquare className="h-4 w-4 text-neutral-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-garamond text-neutral-800 break-words leading-relaxed mb-1">
-                          {getMessageDisplayText(message)}
+                          {message.response || message.query}
                         </p>
                         <p className="text-xs font-garamond text-neutral-400">{formatTime(message.createdAt)}</p>
                       </div>
-                      {(message.intent === 'transcribe' || message.intent === 'generate') && (
-                        <button
-                          onClick={() => onCopy(message)}
-                          className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded hover:bg-neutral-100 focus:outline-none"
-                          title="Copy to clipboard"
-                        >
-                          {copiedId === message.id ? (
-                            <Check className="h-3.5 w-3.5 text-green-600" />
-                          ) : (
-                            <Copy className="h-3.5 w-3.5 text-neutral-500" />
-                          )}
-                        </button>
-                      )}
+                      <button
+                        onClick={() => onCopy(message)}
+                        className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded hover:bg-neutral-100 focus:outline-none"
+                        title="Copy to clipboard"
+                      >
+                        {copiedId === message.id ? (
+                          <Check className="h-3.5 w-3.5 text-green-600" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5 text-neutral-500" />
+                        )}
+                      </button>
                     </div>
                   </div>
                 ))}
