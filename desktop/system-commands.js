@@ -166,8 +166,8 @@ function executeSystemCommand(command) {
     }
     return;
   }
-  if (command.action === "screenshot") {
-    takeScreenshot(command.mode || "full");
+  if (command.action === "take_screenshot") {
+    takeScreenshot(command.type || "full");
     return;
   }
   sendError("Unknown action");
