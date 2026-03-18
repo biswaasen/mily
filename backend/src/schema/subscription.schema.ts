@@ -4,8 +4,6 @@ import sequelize from "../config/database.js";
 export enum PlanType {
   FREE = "free",
   PRO = "pro",
-  PREMIUM = "premium",
-  ENTERPRISE = "enterprise",
 }
 
 export enum SubscriptionStatus {
@@ -22,6 +20,8 @@ class Subscription extends Model {
   declare limit: number;
   declare used: number;
   declare expiresAt: Date | null;
+  declare razorpayCustomerId: string | null;
+  declare razorpaySubscriptionId: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -63,6 +63,14 @@ Subscription.init(
     },
     expiresAt: {
       type: DataTypes.DATE,
+      allowNull: true,
+    },
+    razorpayCustomerId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    razorpaySubscriptionId: {
+      type: DataTypes.STRING,
       allowNull: true,
     },
   },

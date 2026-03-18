@@ -196,6 +196,16 @@ const MainApp: React.FC = () => {
     return <Onboarding onComplete={() => setOnboardingCompleted(true)} />;
   }
 
+  const handleRefreshSubscription = async () => {
+    if (!backendUrl) return;
+    try {
+      const getToken = () => ipcRenderer.invoke('get-auth-token');
+      const subscriptionApi = new SubscriptionApi(backendUrl, getToken);
+      const subData = await subscriptionApi.getSubscription().catch(() => null);
+      if (subData) setSubscription(subData);
+    } catch (_) {}
+  };
+
   return (
     <>
       <UpdateNotification />
@@ -207,6 +217,7 @@ const MainApp: React.FC = () => {
         backendUrl={backendUrl}
         onUserUpdate={setUser}
         backendUnavailable={backendUnavailable}
+        onRefreshSubscription={handleRefreshSubscription}
       />
     </>
   );

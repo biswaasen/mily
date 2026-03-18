@@ -37,6 +37,7 @@ interface DashboardProps {
   backendUrl: string;
   onUserUpdate: (updatedUser: UserProfile) => void;
   backendUnavailable?: boolean;
+  onRefreshSubscription?: () => Promise<void>;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -47,6 +48,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   backendUrl,
   onUserUpdate,
   backendUnavailable,
+  onRefreshSubscription,
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -203,6 +205,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
         user={user}
         subscription={subscription}
         onLogout={onLogout}
+        backendUrl={backendUrl}
+        onRefreshSubscription={onRefreshSubscription}
       />
 
       <div className="flex-1 flex flex-col relative min-w-0">

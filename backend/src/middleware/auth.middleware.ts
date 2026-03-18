@@ -15,10 +15,10 @@ export const authMiddleware = async (c: Context, next: Next) => {
 
     const auth_token = authHeader.replace("Bearer ", "");
 
-    const decoded = jwt.verify(
-      auth_token,
-      process.env.JWT_SECRET || ""
-    ) as JWTPayload;
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) throw new Error("JWT_SECRET is not configured");
+
+    const decoded = jwt.verify(auth_token, jwtSecret) as JWTPayload;
 
     c.set("userId", decoded.userId);
 
