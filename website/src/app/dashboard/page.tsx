@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [upgrading, setUpgrading] = useState(false);
+  const [syncingPlan, setSyncingPlan] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
@@ -42,6 +43,30 @@ export default function DashboardPage() {
       setErrorMsg("Failed to load subscription data.");
     }
   }, []);
+
+  const waitForProSync = useCallback(
+    async (token: string) => {
+      setSyncingPlan(true);
+      try {
+        // Webhook/application of plan can lag a few seconds after payment.
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const sub = await subscriptionApi.getSubscription(token);
+          setSubscription(sub);
+          if (sub.plan === "pro") {
+            showToast("You're now on Pro.", "success");
+            return;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+        showToast("Payment received. Plan update can take 5-10 seconds, then refresh once.", "success");
+      } catch {
+        showToast("Payment received. Refresh in a few seconds to confirm Pro.", "success");
+      } finally {
+        setSyncingPlan(false);
+      }
+    },
+    [showToast]
+  );
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -93,8 +118,8 @@ export default function DashboardPage() {
         description: "Pro Plan — Monthly",
         image: "/logo.png",
         handler: async () => {
-          showToast("Payment successful! Your plan is now Pro.", "success");
-          await fetchSubscription(token);
+          showToast("Payment successful. Syncing your plan (5-10 seconds)...", "success");
+          await waitForProSync(token);
         },
         modal: {
           ondismiss: () => {
@@ -112,7 +137,7 @@ export default function DashboardPage() {
     } finally {
       setUpgrading(false);
     }
-  }, [upgrading, fetchSubscription, showToast]);
+  }, [upgrading, showToast, waitForProSync]);
 
   const handleCancel = useCallback(async () => {
     const token = authUtils.getAuthToken();
@@ -273,18 +298,23 @@ export default function DashboardPage() {
               </div>
               <button
                 onClick={handleUpgrade}
-                disabled={upgrading}
+                disabled={upgrading || syncingPlan}
                 className="w-full py-3 px-4 rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-60 text-white text-sm font-garamond font-medium transition-all flex items-center justify-center gap-2"
               >
-                {upgrading ? (
+                {upgrading || syncingPlan ? (
                   <>
                     <div className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                    Starting checkout…
+                    {syncingPlan ? "Syncing plan…" : "Starting checkout…"}
                   </>
                 ) : (
                   "Upgrade to Pro"
                 )}
               </button>
+              {syncingPlan && (
+                <p className="text-xs font-garamond text-neutral-500 text-center">
+                  Please wait, it can take 5-10 seconds to reflect on your account.
+                </p>
+              )}
             </div>
           ) : (
             <div className="pt-1">
