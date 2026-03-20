@@ -1,6 +1,6 @@
 {
   "name": "mily",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "description": "mily",
   "main": "main.js",
   "scripts": {
@@ -10,7 +10,7 @@
     "start": "npm run build:react && electron .",
     "build": "export $(cat .env | xargs) && NODE_ENV=production npm run build:react && electron-builder --mac --x64 --arm64",
     "dist": "export $(cat .env | xargs) && NODE_ENV=production npm run build:react && electron-builder --mac --x64 --arm64",
-    "upload": "export $(cat .env | xargs) && node scripts/upload-to-vercel.js",
+    "upload": "node scripts/upload-to-gcs.js",
     "publish": "export $(cat .env | xargs) && NODE_ENV=production npm run build:react && electron-builder --mac --x64 --arm64 && npm run upload",
     "version": "npm version patch"
   },
@@ -19,7 +19,6 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@vercel/blob": "^2.0.0",
     "axios": "^1.6.0",
     "dotenv": "^17.2.3",
     "electron-store": "^11.0.2",
@@ -47,7 +46,7 @@
     "productName": "Mily",
     "publish": {
       "provider": "generic",
-      "url": "https://k26riqmsptuevwtz.public.blob.vercel-storage.com"
+      "url": "https://storage.googleapis.com/mily-releases"
     },
     "protocols": [
       {
@@ -80,9 +79,7 @@
       "entitlements": "scripts/entitlements.mac.plist",
       "entitlementsInherit": "scripts/entitlements.mac.inherit.plist",
       "gatekeeperAssess": false,
-      "notarize": {
-        "teamId": "76FZS6K46G"
-      }
+      "notarize": true
     },
     "files": [
       "main.js",

@@ -1,6 +1,6 @@
 module.exports = {
-  BACKEND_URL: 'https://api.mily.club',
+  BACKEND_URL: 'https://mily-backend-4653532267.asia-south1.run.app',
   FRONTEND_URL: 'https://www.mily.club',
-  UPDATE_URL: 'https://k26riqmsptuevwtz.public.blob.vercel-storage.com',
+  UPDATE_URL: 'https://storage.googleapis.com/mily-releases',
 };
 

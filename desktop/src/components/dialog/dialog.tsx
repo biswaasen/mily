@@ -18,7 +18,7 @@ export const Dialog: React.FC = () => {
   const showHoverHint = hoverHint && status === 'idle' && !showError;
 
   useEffect(() => {
-    ipcRenderer.send('enable-mouse-events');
+    ipcRenderer.send('disable-mouse-events');
     return () => {
       ipcRenderer.send('disable-mouse-events');
     };
@@ -35,12 +35,12 @@ export const Dialog: React.FC = () => {
       className="relative w-full h-full flex flex-col items-center justify-start" 
       style={{ pointerEvents: 'none', paddingTop: '10px' }}
     >
-      <div 
-        className="relative flex flex-col items-center"
-        onMouseEnter={() => setHoverHint(true)}
-        onMouseLeave={() => setHoverHint(false)}
-        style={{ pointerEvents: 'auto' }}
-      >
+        <div 
+          className="relative flex flex-col items-center"
+          onMouseEnter={() => { setHoverHint(true); ipcRenderer.send('enable-mouse-events'); }}
+          onMouseLeave={() => { setHoverHint(false); ipcRenderer.send('disable-mouse-events'); }}
+          style={{ pointerEvents: 'auto' }}
+        >
         <div 
           className="rounded-full flex flex-col items-center justify-center backdrop-blur-md"
           style={{

@@ -352,8 +352,8 @@ export default function DashboardPage() {
 
         <p className="text-center text-xs font-garamond text-neutral-400">
           Need help?{" "}
-          <a href="mailto:support@mily.club" className="underline underline-offset-2 hover:text-neutral-600 transition-colors">
-           biswaasen@gmail.com
+          <a href="mailto:hi@mily.club" className="underline underline-offset-2 hover:text-neutral-600 transition-colors">
+            hi@mily.club
           </a>
         </p>
       </main>

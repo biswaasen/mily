@@ -11,11 +11,11 @@ function DownloadContent() {
   const [authenticating, setAuthenticating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const version = "1.0.19";
+  const version = "1.0.22";
   
   const downloadUrl = arch === "intel"
-    ? `https://k26riqmsptuevwtz.public.blob.vercel-storage.com/Mily-${version}.dmg`
-    : `https://k26riqmsptuevwtz.public.blob.vercel-storage.com/Mily-${version}-arm64.dmg`;
+    ? `https://storage.googleapis.com/mily-releases/Mily-${version}.dmg`
+    : `https://storage.googleapis.com/mily-releases/Mily-${version}-arm64.dmg`;
 
   useEffect(() => {
     const initiateDownload = async () => {
