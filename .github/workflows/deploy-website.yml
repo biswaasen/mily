@@ -30,10 +30,21 @@ jobs:
         with:
           project_id: askmily
 
+      - name: Configure Docker auth for Artifact Registry
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build and push website image
+        run: |
+          IMAGE="us-central1-docker.pkg.dev/askmily/cloud-run-source-deploy/mily-website:${{ github.sha }}"
+          docker build -t "${IMAGE}" ./website
+          docker push "${IMAGE}"
+
       - name: Deploy website to Cloud Run
         run: |
+          IMAGE="us-central1-docker.pkg.dev/askmily/cloud-run-source-deploy/mily-website:${{ github.sha }}"
           gcloud run deploy mily-website \
-            --source ./website \
+            --image "${IMAGE}" \
             --region us-central1 \
             --project askmily \
             --allow-unauthenticated
