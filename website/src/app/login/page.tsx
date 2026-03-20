@@ -11,6 +11,7 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/dashboard";
+  const isDesktopRedirect = redirect.startsWith("mily://");
 
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -19,13 +20,19 @@ function LoginContent() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user && authUtils.isAuthenticated()) {
+        if (isDesktopRedirect) {
+          const token = authUtils.getAuthToken();
+          if (token) authUtils.sendTokenViaDeepLink(token);
+          setChecking(false);
+          return;
+        }
         router.replace(redirect);
       } else {
         setChecking(false);
       }
     });
     return () => unsubscribe();
-  }, [router, redirect]);
+  }, [router, redirect, isDesktopRedirect]);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -34,7 +41,7 @@ function LoginContent() {
 
       const response = await authApi.loginWithGoogle();
 
-      if (typeof window !== "undefined" && (window as any).electronAPI) {
+      if (typeof window !== "undefined" && ((window as any).electronAPI || isDesktopRedirect)) {
         authUtils.handleAuthSuccess(response.auth_token);
       } else {
         authUtils.saveAuthToken(response.auth_token);

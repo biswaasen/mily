@@ -71,7 +71,14 @@ function registerAuth(ipcMain, config) {
   });
 
   ipcMain.on("open-login", () => {
-    if (config.LOGIN_URL) shell.openExternal(config.LOGIN_URL);
+    if (!config.LOGIN_URL) return;
+    try {
+      const loginUrl = new URL(config.LOGIN_URL);
+      loginUrl.searchParams.set("redirect", "mily://auth");
+      shell.openExternal(loginUrl.toString());
+    } catch {
+      shell.openExternal(config.LOGIN_URL);
+    }
   });
 
   ipcMain.on("open-accessibility-settings", () => {

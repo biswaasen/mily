@@ -11,7 +11,7 @@ function DownloadContent() {
   const [authenticating, setAuthenticating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const version = "1.0.23";
+  const version = "1.0.24";
   
   const downloadUrl = arch === "intel"
     ? `https://storage.googleapis.com/mily-releases/Mily-${version}.dmg`
