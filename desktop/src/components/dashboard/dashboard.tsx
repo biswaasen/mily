@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { UserProfile, Subscription, Message, Memory } from '../../types';
+import { Memory, Message } from '../../types';
 import { useIpc } from '../../hooks/useIpc';
 import { Sidebar } from './sidebar';
 import { HomeContent } from './home-content';
 import { MessageList } from './message-list';
 import { SettingsContent } from './settings-content';
 import { formatDate } from '../../utils/date';
-import { MessagesApi } from '../../services/api/messages.api';
-import { MemoryApi } from '../../services/api/memory.api';
 
 interface GroupedMessages {
   date: string;
@@ -30,26 +28,12 @@ function groupMessagesByDate(msgs: Message[]): GroupedMessages[] {
 }
 
 interface DashboardProps {
-  isAuthenticated: boolean;
-  user: UserProfile | null;
-  subscription: Subscription | null;
+  userName: string | null;
   onLogout: () => void;
-  backendUrl: string;
-  onUserUpdate: (updatedUser: UserProfile) => void;
-  backendUnavailable?: boolean;
-  onRefreshSubscription?: () => Promise<void>;
+  onUserNameChange: (name: string | null) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({
-  isAuthenticated,
-  user,
-  subscription,
-  onLogout,
-  backendUrl,
-  onUserUpdate,
-  backendUnavailable,
-  onRefreshSubscription,
-}) => {
+export const Dashboard: React.FC<DashboardProps> = ({ userName, onLogout, onUserNameChange }) => {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [messages, setMessages] = useState<Message[]>([]);
   const [groupedMessages, setGroupedMessages] = useState<GroupedMessages[]>([]);
@@ -69,78 +53,55 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const ipcRenderer = useIpc();
-  const prevBackendUnavailable = useRef(backendUnavailable);
 
   useEffect(() => {
     const handleError = (_: unknown, message: string) => {
       setErrorMessage(message);
       setTimeout(() => setErrorMessage(''), 2000);
     };
-    const handleSuccess = (_: unknown, message: string) => {
-      setSuccessMessage(message);
-      setTimeout(() => setSuccessMessage(''), 3000);
-    };
     ipcRenderer.on('error', handleError);
-    ipcRenderer.on('auth-success-message', handleSuccess);
-    return () => {
-      ipcRenderer.removeListener('error', handleError);
-      ipcRenderer.removeListener('auth-success-message', handleSuccess);
-    };
+    return () => ipcRenderer.removeListener('error', handleError);
   }, [ipcRenderer]);
-
-  const getToken = useCallback(() => ipcRenderer.invoke('get-auth-token'), [ipcRenderer]);
 
   const fetchMessages = useCallback(
     async (pageNum: number, append: boolean) => {
-      if (!backendUrl) return;
       try {
         if (pageNum === 1) setLoading(true);
         else setLoadingMore(true);
         setError(null);
-        const api = new MessagesApi(backendUrl, getToken);
-        const data = await api.getMessages(pageNum, 20);
+        const data = await ipcRenderer.invoke('get-messages', pageNum, 20);
         if (append) setMessages((prev) => [...prev, ...data.messages]);
         else setMessages(data.messages);
         setHasMore(data.pagination.page < data.pagination.totalPages);
         setPage(pageNum);
-      } catch (err: unknown) {
-        const e = err as { status?: number };
-        setError(e?.status === 401 ? 'Authentication required' : 'Failed to load messages');
+      } catch {
+        setError('Failed to load messages');
       } finally {
         setLoading(false);
         setLoadingMore(false);
       }
     },
-    [backendUrl, getToken]
+    [ipcRenderer]
   );
 
   useEffect(() => {
-    if (backendUrl && activeTab === 'messages') fetchMessages(1, false);
-  }, [backendUrl, activeTab, fetchMessages]);
+    if (activeTab === 'messages') fetchMessages(1, false);
+  }, [activeTab, fetchMessages]);
 
   useEffect(() => {
     setGroupedMessages(groupMessagesByDate(messages));
   }, [messages]);
 
   const fetchMemories = useCallback(async () => {
-    if (!backendUrl) return;
     try {
-      const api = new MemoryApi(backendUrl, getToken);
-      setMemories(await api.getMemories());
-    } catch (_) {}
-  }, [backendUrl, getToken]);
+      const mems = await ipcRenderer.invoke('get-memories');
+      setMemories(mems || []);
+    } catch {}
+  }, [ipcRenderer]);
 
   useEffect(() => {
-    if (backendUrl && activeTab === 'home') fetchMemories();
-  }, [backendUrl, activeTab, fetchMemories]);
-
-  useEffect(() => {
-    if (prevBackendUnavailable.current && !backendUnavailable && backendUrl) {
-      if (activeTab === 'messages') fetchMessages(1, false);
-      if (activeTab === 'home') fetchMemories();
-    }
-    prevBackendUnavailable.current = backendUnavailable ?? false;
-  }, [backendUnavailable, backendUrl, activeTab, fetchMessages, fetchMemories]);
+    if (activeTab === 'home') fetchMemories();
+  }, [activeTab, fetchMemories]);
 
   useEffect(() => {
     if (!loadMoreRef.current || !hasMore || loading || loadingMore) return;
@@ -160,53 +121,49 @@ export const Dashboard: React.FC<DashboardProps> = ({
       await navigator.clipboard.writeText(text);
       setCopiedId(message.id);
       setTimeout(() => setCopiedId(null), 2000);
-    } catch (_) {}
+    } catch {}
   }, []);
 
   const handleAddMemory = useCallback(async () => {
-    if (!memoryText.trim() || isAddingMemory || !backendUrl) return;
+    if (!memoryText.trim() || isAddingMemory) return;
     setIsAddingMemory(true);
     try {
-      const api = new MemoryApi(backendUrl, getToken);
-      await api.addMemory(memoryText.trim(), memoryKey.trim() || undefined);
+      await ipcRenderer.invoke('add-memory', memoryText.trim());
       setMemoryText('');
       setMemoryKey('');
       await fetchMemories();
-      setSuccessMessage('Memory saved successfully');
-    } catch (_) {
+      setSuccessMessage('Memory saved');
+      setTimeout(() => setSuccessMessage(''), 2000);
+    } catch {
       setErrorMessage('Failed to save memory');
+      setTimeout(() => setErrorMessage(''), 2000);
     } finally {
       setIsAddingMemory(false);
     }
-  }, [memoryText, memoryKey, isAddingMemory, backendUrl, getToken, fetchMemories]);
+  }, [memoryText, isAddingMemory, ipcRenderer, fetchMemories]);
 
   const handleDeleteMemory = useCallback(
     async (id: string) => {
-      if (!backendUrl) return;
       try {
-        const api = new MemoryApi(backendUrl, getToken);
-        await api.deleteMemory(id);
+        await ipcRenderer.invoke('delete-memory', id);
         await fetchMemories();
-        setSuccessMessage('Memory deleted successfully');
-      } catch (_) {
+        setSuccessMessage('Memory deleted');
+        setTimeout(() => setSuccessMessage(''), 2000);
+      } catch {
         setErrorMessage('Failed to delete memory');
+        setTimeout(() => setErrorMessage(''), 2000);
       }
     },
-    [backendUrl, getToken, fetchMemories]
+    [ipcRenderer, fetchMemories]
   );
-
-  if (!isAuthenticated) return null;
 
   return (
     <div className="h-screen w-full bg-white flex flex-col md:flex-row">
       <Sidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        user={user}
-        subscription={subscription}
+        userName={userName}
         onLogout={onLogout}
-        backendUrl={backendUrl}
-        onRefreshSubscription={onRefreshSubscription}
       />
 
       <div className="flex-1 flex flex-col relative min-w-0">
@@ -227,11 +184,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
         >
           <style>{`.flex-1.overflow-auto::-webkit-scrollbar { display: none; }`}</style>
-          {backendUnavailable && (
-            <div className="max-w-3xl mx-auto mb-4 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-garamond">
-              Server is unreachable. Your session is still valid; data will load when the backend is back.
-            </div>
-          )}
           {activeTab === 'home' && (
             <HomeContent
               memoryText={memoryText}

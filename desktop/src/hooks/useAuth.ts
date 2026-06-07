@@ -9,8 +9,8 @@ export const useAuth = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = await ipcRenderer.invoke('get-auth-token');
-        setIsAuthenticated(!!token);
+        const key = await ipcRenderer.invoke('get-groq-key');
+        setIsAuthenticated(!!key);
       } catch {
         setIsAuthenticated(false);
       } finally {
@@ -20,24 +20,11 @@ export const useAuth = () => {
 
     checkAuth();
 
-    const handleAuthSuccess = async () => {
-      const token = await ipcRenderer.invoke('get-auth-token');
-      setIsAuthenticated(!!token);
-    };
+    const handleReset = () => setIsAuthenticated(false);
 
-    const handleAuthExpired = () => {
-      setIsAuthenticated(false);
-    };
-
-    ipcRenderer.on('auth-success', handleAuthSuccess);
-    ipcRenderer.on('auth-expired', handleAuthExpired);
-
-    return () => {
-      ipcRenderer.removeListener('auth-success', handleAuthSuccess);
-      ipcRenderer.removeListener('auth-expired', handleAuthExpired);
-    };
+    ipcRenderer.on('reset-app', handleReset);
+    return () => ipcRenderer.removeListener('reset-app', handleReset);
   }, [ipcRenderer]);
 
   return { isAuthenticated, checkingAuth };
 };
-

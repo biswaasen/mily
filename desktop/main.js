@@ -1,5 +1,4 @@
 const { app, screen, Menu } = require("electron");
-const path = require("path");
 const { loadConfig } = require("./config/config-loader");
 const store = require("./store");
 const windows = require("./windows");
@@ -8,8 +7,6 @@ const ipcHandlers = require("./ipc");
 const updateService = require("./services/update-service");
 
 const config = loadConfig();
-
-let pendingAuthUrl = null;
 
 function setupMenus() {
   if (process.platform !== "darwin") return;
@@ -25,6 +22,18 @@ function setupMenus() {
         { role: "unhide" },
         { type: "separator" },
         { role: "quit" }
+      ]
+    },
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { role: "selectAll" }
       ]
     },
     {
@@ -56,16 +65,6 @@ function setupMenus() {
   app.dock.setMenu(dockMenu);
 }
 
-function processAuthUrl(url) {
-  if (!url) return;
-
-  if (app.isReady()) {
-    ipcHandlers.handleAuthCallback(url, config);
-  } else {
-    pendingAuthUrl = url;
-  }
-}
-
 function initializeApp() {
   app.setName("Mily");
 
@@ -73,22 +72,7 @@ function initializeApp() {
     app.dock.show();
   }
 
-  if (process.defaultApp) {
-    if (process.argv.length >= 2) {
-      app.setAsDefaultProtocolClient("mily", process.execPath, [path.resolve(process.argv[1])]);
-    }
-  } else {
-    app.setAsDefaultProtocolClient("mily");
-  }
-
-  app.on("open-url", (event, url) => {
-    event.preventDefault();
-    processAuthUrl(url);
-  });
-
-  app.on("second-instance", (event, commandLine) => {
-    const url = commandLine.find(arg => arg.startsWith("mily://"));
-    if (url) processAuthUrl(url);
+  app.on("second-instance", () => {
     const main = windows.getSafeMainWindow();
     if (main) {
       if (main.isMinimized()) main.restore();
@@ -101,8 +85,8 @@ function initializeApp() {
   ipcHandlers.registerShortcut();
   setupMenus();
 
-  const authToken = store.getAuthToken();
-  if (authToken) {
+  const groqApiKey = store.getGroqApiKey();
+  if (groqApiKey) {
     windows.createInputWindow();
     systemCommands.setInputWindow(windows.getInputWindow());
   }
@@ -136,16 +120,6 @@ function initializeApp() {
   updateService.setupAutoUpdater();
   updateService.setupIpcHandlers();
   updateService.startPeriodicUpdateCheck();
-
-  if (pendingAuthUrl) {
-    processAuthUrl(pendingAuthUrl);
-    pendingAuthUrl = null;
-  }
-
-  const protocolUrl = process.argv.find(arg => arg.startsWith("mily://"));
-  if (protocolUrl) {
-    processAuthUrl(protocolUrl);
-  }
 }
 
 const gotTheLock = app.requestSingleInstanceLock();
@@ -155,8 +129,7 @@ if (!gotTheLock) {
   app.whenReady().then(initializeApp);
 }
 
-app.on("window-all-closed", () => {
-});
+app.on("window-all-closed", () => {});
 
 app.on("activate", () => {
   windows.showMainWindow();

@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { RecordingStatus } from '../types';
 import { MIN_HEIGHT, MAX_HEIGHT } from '../utils/constants';
 import { useIpc } from './useIpc';
-import { invokeWithTimeout } from '../utils/ipc';
 
 const playRecordingFeedback = () => {
   try {
@@ -47,57 +46,14 @@ export const useAudioRecording = () => {
     });
   };
 
-  const sendAudioToBackend = async (audioBlob: Blob, filename: string, capturedContext: string) => {
-    type Config = { BACKEND_URL?: string; FRONTEND_URL?: string; LOGIN_URL?: string };
-
-    const config = await invokeWithTimeout(
-      () => ipcRenderer.invoke('get-config'),
-      5000,
-      'IPC connection timeout. Please restart the app.'
-    ) as Config;
-    const token = await invokeWithTimeout(
-      () => ipcRenderer.invoke('get-auth-token'),
-      5000,
-      'IPC connection timeout. Please restart the app.'
-    ) as string | null;
-
-    if (!config?.BACKEND_URL || !token) {
-      throw new Error('Not authenticated. Please login.');
-    }
-
-    const formData = new FormData();
-    formData.append('audio', audioBlob, filename);
-    if (capturedContext) {
-      formData.append('context', capturedContext);
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90000);
-
-    let response;
-    try {
-      response = await fetch(`${config.BACKEND_URL}/api/v1/completion`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        throw new Error('Request timeout. Please try again.');
-      }
-      throw fetchError;
-    }
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      if (response.status === 401) throw new Error('Authentication expired. Please login again.');
-      throw new Error(errorData.error || `Request failed: ${response.statusText}`);
-    }
-
-    return response.json();
+  const sendAudioToGroq = async (audioBlob: Blob, capturedContext: string) => {
+    const arrayBuffer = await audioBlob.arrayBuffer();
+    const uint8 = Array.from(new Uint8Array(arrayBuffer));
+    const result = await ipcRenderer.invoke('process-audio', {
+      audioData: uint8,
+      context: capturedContext,
+    });
+    return result;
   };
 
   const startRecording = async () => {
@@ -153,11 +109,11 @@ export const useAudioRecording = () => {
             ipcRenderer.send('processing');
 
             try {
-              const result = await sendAudioToBackend(audioBlob, 'audio.webm', capturedContext);
+              const result = await sendAudioToGroq(audioBlob, capturedContext);
               ipcRenderer.send('http-result', {
                 response: result.response,
                 action: result.action,
-                transcription: result.transcription
+                transcription: result.transcription,
               });
               setTimeout(() => { cleanup(); setContext(''); }, 100);
             } catch (error) {
@@ -250,7 +206,7 @@ export const useAudioRecording = () => {
       statusRef.current = 'idle';
     };
 
-    const handleError = (event: any, message: string) => {
+    const handleError = (_event: any, message: string) => {
       if (statusRef.current === 'processing') {
         setStatus('idle');
         statusRef.current = 'idle';
@@ -259,7 +215,7 @@ export const useAudioRecording = () => {
       setTimeout(() => setErrorMessage(''), 1500);
     };
 
-    const handleToggleRecording = async (event: any, targetApp: string) => {
+    const handleToggleRecording = async (_event: any, _targetApp: string) => {
       if (statusRef.current === 'idle') {
         await startRecording();
       } else if (statusRef.current === 'recording') {

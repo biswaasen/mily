@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Sparkles, Zap, Trash2 } from 'lucide-react';
+import { BookOpen, Trash2 } from 'lucide-react';
 import { Memory } from '../../types';
 import { useShortcut } from '../../hooks/useShortcut';
 
@@ -17,8 +17,6 @@ interface HomeContentProps {
 export const HomeContent: React.FC<HomeContentProps> = ({
   memoryText,
   onMemoryTextChange,
-  memoryKey,
-  onMemoryKeyChange,
   memories,
   isAddingMemory,
   onAddMemory,
@@ -59,26 +57,8 @@ export const HomeContent: React.FC<HomeContentProps> = ({
               <BookOpen className="h-4 w-4 text-purple-600" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-garamond font-semibold text-neutral-900 mb-0.5">Transcribe</p>
-              <p className="text-xs font-garamond text-neutral-500">"type this: review code then test"</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 bg-white/60 rounded-lg p-3 border border-neutral-200/60">
-            <div className="p-1.5 bg-green-50 rounded-md flex-shrink-0">
-              <Sparkles className="h-4 w-4 text-green-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-garamond font-semibold text-neutral-900 mb-0.5">Generate</p>
-              <p className="text-xs font-garamond text-neutral-500">"draft email to Sarah about tomorrow"</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 bg-white/60 rounded-lg p-3 border border-neutral-200/60">
-            <div className="p-1.5 bg-orange-50 rounded-md flex-shrink-0">
-              <Zap className="h-4 w-4 text-orange-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-garamond font-semibold text-neutral-900 mb-0.5">Commands</p>
-              <p className="text-xs font-garamond text-neutral-500">"open Spotify" • "screenshot" • "press enter"</p>
+              <p className="text-xs font-garamond font-semibold text-neutral-900 mb-0.5">Voice to text</p>
+              <p className="text-xs font-garamond text-neutral-500">Speak anything — it gets transcribed and pasted into your active app.</p>
             </div>
           </div>
         </div>
@@ -86,36 +66,27 @@ export const HomeContent: React.FC<HomeContentProps> = ({
 
       <div>
         <h2 className="text-lg font-garamond font-medium text-neutral-900 mb-3">Memory</h2>
-        <div className="flex flex-col gap-2 mb-4">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              type="text"
-              value={memoryKey}
-              onChange={(e) => onMemoryKeyChange(e.target.value)}
-              placeholder="Key (optional)"
-              className="w-56 px-3 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-300 focus:border-transparent text-sm font-garamond text-neutral-900 placeholder:text-neutral-400"
-            />
-            <input
-              type="text"
-              value={memoryText}
-              onChange={(e) => onMemoryTextChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  onAddMemory();
-                }
-              }}
-              placeholder="Content..."
-              className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-300 focus:border-transparent text-sm font-garamond text-neutral-900 placeholder:text-neutral-400"
-            />
-            <button
-              onClick={onAddMemory}
-              disabled={!memoryText.trim() || isAddingMemory}
-              className="px-4 py-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-garamond font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none w-full sm:w-auto"
-            >
-              Save
-            </button>
-          </div>
+        <div className="flex gap-2 mb-4">
+          <input
+            type="text"
+            value={memoryText}
+            onChange={(e) => onMemoryTextChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                onAddMemory();
+              }
+            }}
+            placeholder="Add something for Mily to remember..."
+            className="flex-1 px-3 py-2 rounded-lg border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-300 focus:border-transparent text-sm font-garamond text-neutral-900 placeholder:text-neutral-400"
+          />
+          <button
+            onClick={onAddMemory}
+            disabled={!memoryText.trim() || isAddingMemory}
+            className="px-4 py-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-garamond font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
+          >
+            Save
+          </button>
         </div>
 
         {memories.length === 0 ? (
@@ -127,12 +98,6 @@ export const HomeContent: React.FC<HomeContentProps> = ({
             {memories.map((memory) => (
               <div key={memory.id} className="group inline-flex items-start gap-1.5 bg-neutral-50 rounded-lg px-2.5 py-1.5 border border-neutral-200">
                 <p className="text-sm font-garamond text-neutral-800 leading-snug">
-                  {memory.key && (
-                    <span className="font-medium uppercase tracking-wide text-xs mr-1.5">
-                      {memory.key}
-                    </span>
-                  )}
-                  {memory.key && <span className="text-neutral-400 mr-1.5">—</span>}
                   {memory.content}
                 </p>
                 <button

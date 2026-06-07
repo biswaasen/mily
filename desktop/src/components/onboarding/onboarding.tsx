@@ -3,19 +3,19 @@ import { useIpc } from '../../hooks/useIpc';
 import { MicrophoneStep } from '../permission/microphone';
 import { AccessibilityStep } from '../permission/accessibility';
 
-type Step = 'welcome' | 'microphone' | 'accessibility';
+type Step = 'setup' | 'microphone' | 'accessibility';
 
 interface OnboardingProps {
   onComplete: () => void;
 }
 
-const STEPS: Step[] = ['welcome', 'microphone', 'accessibility'];
+const STEPS: Step[] = ['setup', 'microphone', 'accessibility'];
 
 function ProgressDots({ current }: { current: Step }) {
   const permSteps: Step[] = ['microphone', 'accessibility'];
   return (
     <div className="flex items-center justify-center gap-2 mb-8">
-      {permSteps.map((s, i) => (
+      {permSteps.map((s) => (
         <div
           key={s}
           className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -31,10 +31,117 @@ function ProgressDots({ current }: { current: Step }) {
   );
 }
 
+function SetupStep({
+  onNext,
+}: {
+  onNext: (name: string, apiKey: string) => void;
+}) {
+  const ipcRenderer = useIpc();
+  const [name, setName] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleContinue = async () => {
+    if (!name.trim()) {
+      setError('Please enter your name.');
+      return;
+    }
+    if (!apiKey.trim()) {
+      setError('Please enter your Groq API key.');
+      return;
+    }
+    setError('');
+    setVerifying(true);
+    try {
+      const valid = await ipcRenderer.invoke('verify-groq-key', apiKey.trim());
+      if (!valid) {
+        setError('Invalid API key. Please check and try again.');
+        return;
+      }
+      await ipcRenderer.invoke('set-user-name', name.trim());
+      await ipcRenderer.invoke('set-groq-key', apiKey.trim());
+      onNext(name.trim(), apiKey.trim());
+    } catch {
+      setError('Could not verify API key. Check your internet connection.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-xs font-garamond font-semibold text-neutral-700 uppercase tracking-wide">
+          Your name
+        </label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Alex"
+          className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-300 focus:border-transparent text-sm font-garamond text-neutral-900 placeholder:text-neutral-400 bg-white"
+          onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs font-garamond font-semibold text-neutral-700 uppercase tracking-wide">
+          Groq API key
+        </label>
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder="gsk_..."
+          className="w-full px-3 py-2.5 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-neutral-300 focus:border-transparent text-sm font-mono text-neutral-900 placeholder:text-neutral-400 bg-white"
+          onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
+        />
+        <p className="text-xs font-garamond text-neutral-500">
+          Get your free key at{' '}
+          <a
+            href="https://console.groq.com/keys"
+            target="_blank"
+            rel="noreferrer"
+            className="text-neutral-900 underline underline-offset-2"
+          >
+            console.groq.com/keys
+          </a>
+        </p>
+      </div>
+
+      {error && (
+        <p className="text-xs font-garamond text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          {error}
+        </p>
+      )}
+
+      <button
+        onClick={handleContinue}
+        disabled={verifying}
+        className="w-full py-3 rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white text-sm font-garamond font-medium transition-all focus:outline-none flex items-center justify-center gap-2"
+      >
+        {verifying ? (
+          <>
+            <div className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+            Verifying key...
+          </>
+        ) : (
+          'Continue →'
+        )}
+      </button>
+    </div>
+  );
+}
+
 export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
-  const [step, setStep] = useState<Step>('welcome');
+  const [step, setStep] = useState<Step>('setup');
   const [micGranted, setMicGranted] = useState<boolean | null>(null);
   const ipcRenderer = useIpc();
+
+  const handleSetupNext = () => {
+    setStep('microphone');
+  };
 
   const handleAllowMicrophone = async () => {
     try {
@@ -66,69 +173,36 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     onComplete();
   };
 
+  const stepTitle =
+    step === 'setup'
+      ? 'Welcome to Mily'
+      : 'Set up Mily';
+
+  const stepSubtitle =
+    step === 'setup'
+      ? 'Your open-source AI voice assistant.'
+      : step === 'microphone'
+      ? 'Step 1 of 2 — Microphone'
+      : 'Step 2 of 2 — Accessibility';
+
   return (
     <div className="h-screen w-full bg-white flex items-center justify-center p-8" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
       <div className="w-full max-w-sm" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-        {/* Logo + title */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 mb-5 rounded-2xl overflow-hidden shadow-sm border border-neutral-100">
             <img src="public/logo.png" alt="Mily" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-garamond font-medium text-neutral-900 tracking-tight">
-            {step === 'welcome' ? 'Welcome to Mily' : 'Set up Mily'}
+            {stepTitle}
           </h1>
-          <p className="text-sm font-garamond text-neutral-500 mt-1.5">
-            {step === 'welcome'
-              ? 'Your AI assistant that listens and acts.'
-              : step === 'microphone'
-              ? 'Step 1 of 2 — Microphone'
-              : 'Step 2 of 2 — Accessibility'}
-          </p>
+          <p className="text-sm font-garamond text-neutral-500 mt-1.5">{stepSubtitle}</p>
         </div>
 
-        {/* Welcome step */}
-        {step === 'welcome' && (
-          <div className="space-y-5">
-            <div className="bg-neutral-50 rounded-2xl p-5 border border-neutral-200 space-y-4">
-              <p className="text-sm font-garamond text-neutral-600 leading-relaxed">
-                Mily needs two quick permissions to work. This only takes a minute.
-              </p>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-neutral-900 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-garamond font-semibold text-neutral-900">Microphone</p>
-                    <p className="text-xs font-garamond text-neutral-500">To hear your voice when you record</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-neutral-900 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-garamond font-semibold text-neutral-900">Accessibility</p>
-                    <p className="text-xs font-garamond text-neutral-500">To type Mily's responses into your apps</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setStep('microphone')}
-              className="w-full py-3 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-garamond font-medium transition-all focus:outline-none"
-            >
-              Get started →
-            </button>
-          </div>
+        {step === 'setup' && (
+          <SetupStep onNext={handleSetupNext} />
         )}
 
-        {/* Permission steps */}
-        {step !== 'welcome' && (
+        {step !== 'setup' && (
           <>
             <ProgressDots current={step} />
             <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-6">

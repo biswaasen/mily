@@ -1,21 +1,24 @@
-const { ipcMain } = require("electron");
 const { exec } = require("child_process");
 const store = require("../store");
 const windows = require("../windows");
 const recording = require("./recording");
+const systemCommands = require("../system-commands");
 
 const VALID_SHORTCUT_KEYS = ["m", "n", "b", "s", "d", "g", "h", "u", "o", "k", "l"];
 
 function registerConfig(ipcMain, config) {
   ipcMain.handle("get-config", () => ({
-    BACKEND_URL: config.BACKEND_URL,
-    FRONTEND_URL: config.FRONTEND_URL,
-    LOGIN_URL: config.LOGIN_URL,
+    UPDATE_URL: config.UPDATE_URL,
   }));
 
   ipcMain.handle("get-onboarding-status", () => store.getOnboardingCompleted());
   ipcMain.handle("complete-onboarding", () => {
     store.setOnboardingCompleted(true);
+    const existing = windows.getSafeInputWindow();
+    if (!existing || existing.isDestroyed()) {
+      windows.createInputWindow();
+      systemCommands.setInputWindow(windows.getInputWindow());
+    }
     return true;
   });
   ipcMain.handle("reset-onboarding", () => {
