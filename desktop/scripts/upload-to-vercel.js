@@ -25,24 +25,24 @@ async function uploadToVercel() {
   const filePatterns = [
     {
       arch: 'arm64',
-      dmg: `Mily-${version}-arm64.dmg`,
-      zip: `Mily-${version}-arm64-mac.zip`,
-      dmgBlockmap: `Mily-${version}-arm64.dmg.blockmap`,
-      zipBlockmap: `Mily-${version}-arm64-mac.zip.blockmap`
+      dmg: `mickey-${version}-arm64.dmg`,
+      zip: `mickey-${version}-arm64-mac.zip`,
+      dmgBlockmap: `mickey-${version}-arm64.dmg.blockmap`,
+      zipBlockmap: `mickey-${version}-arm64-mac.zip.blockmap`
     },
     {
       arch: 'x64',
-      dmg: `Mily-${version}-x64.dmg`,
-      zip: `Mily-${version}-x64-mac.zip`,
-      dmgBlockmap: `Mily-${version}-x64.dmg.blockmap`,
-      zipBlockmap: `Mily-${version}-x64-mac.zip.blockmap`
+      dmg: `mickey-${version}-x64.dmg`,
+      zip: `mickey-${version}-x64-mac.zip`,
+      dmgBlockmap: `mickey-${version}-x64.dmg.blockmap`,
+      zipBlockmap: `mickey-${version}-x64-mac.zip.blockmap`
     },
     {
       arch: 'x64',
-      dmg: `Mily-${version}.dmg`,
-      zip: `Mily-${version}-mac.zip`,
-      dmgBlockmap: `Mily-${version}.dmg.blockmap`,
-      zipBlockmap: `Mily-${version}-mac.zip.blockmap`
+      dmg: `mickey-${version}.dmg`,
+      zip: `mickey-${version}-mac.zip`,
+      dmgBlockmap: `mickey-${version}.dmg.blockmap`,
+      zipBlockmap: `mickey-${version}-mac.zip.blockmap`
     }
   ];
 

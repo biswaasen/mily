@@ -5,10 +5,8 @@ import { Dialog } from './components/dialog';
 const container = document.getElementById('root');
 if (!container) throw new Error('Root element not found');
 
-const root = createRoot(container);
-root.render(
-  <div className="h-full w-full">
+createRoot(container).render(
+  <div style={{ height: '100%', width: '100%' }}>
     <Dialog />
   </div>
 );
-

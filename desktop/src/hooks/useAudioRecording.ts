@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { RecordingStatus } from '../types';
-import { MIN_HEIGHT, MAX_HEIGHT } from '../utils/constants';
 import { useIpc } from './useIpc';
 
 const playRecordingFeedback = () => {
@@ -11,8 +10,6 @@ const playRecordingFeedback = () => {
     a.play().catch(() => {});
   } catch (_) {}
 };
-
-const CENTER_ORDER = [4, 5, 3, 6, 2, 7, 1, 8, 0, 9];
 
 export const useAudioRecording = () => {
   const [status, setStatus] = useState<RecordingStatus>('idle');
@@ -27,7 +24,7 @@ export const useAudioRecording = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const statusRef = useRef<RecordingStatus>('idle');
   const isCancelledRef = useRef<boolean>(false);
-  const barsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const levelRef = useRef<number>(0);
   const waveAnimationRef = useRef<number | null>(null);
 
   const cleanup = () => {
@@ -40,10 +37,7 @@ export const useAudioRecording = () => {
     }
     audioContextRef.current = null;
     analyserRef.current = null;
-
-    barsRef.current.forEach((bar) => {
-      if (bar) bar.style.height = `${MIN_HEIGHT}px`;
-    });
+    levelRef.current = 0;
   };
 
   const sendAudioToGroq = async (audioBlob: Blob, capturedContext: string) => {
@@ -223,6 +217,14 @@ export const useAudioRecording = () => {
       }
     };
 
+    const handleStartRecording = async () => {
+      if (statusRef.current === 'idle') await startRecording();
+    };
+
+    const handleStopRecording = () => {
+      if (statusRef.current === 'recording') stopRecording();
+    };
+
     const handleCancelRecording = () => {
       cancelRecording();
     };
@@ -231,6 +233,8 @@ export const useAudioRecording = () => {
     ipcRenderer.on('processing-complete', handleProcessingComplete);
     ipcRenderer.on('error', handleError);
     ipcRenderer.on('toggle-recording', handleToggleRecording);
+    ipcRenderer.on('start-recording', handleStartRecording);
+    ipcRenderer.on('stop-recording', handleStopRecording);
     ipcRenderer.on('cancel-recording', handleCancelRecording);
 
     return () => {
@@ -238,75 +242,55 @@ export const useAudioRecording = () => {
       ipcRenderer.removeListener('processing-complete', handleProcessingComplete);
       ipcRenderer.removeListener('error', handleError);
       ipcRenderer.removeListener('toggle-recording', handleToggleRecording);
+      ipcRenderer.removeListener('start-recording', handleStartRecording);
+      ipcRenderer.removeListener('stop-recording', handleStopRecording);
       ipcRenderer.removeListener('cancel-recording', handleCancelRecording);
       cleanup();
     };
   }, [ipcRenderer, cancelRecording]);
 
   useEffect(() => {
-    const isRecording = status === 'recording' && analyserRef.current;
-
-    if (!isRecording) {
+    if (status !== 'recording' || !analyserRef.current) {
       if (waveAnimationRef.current) {
         cancelAnimationFrame(waveAnimationRef.current);
         waveAnimationRef.current = null;
       }
-      barsRef.current.forEach((bar) => {
-        if (bar) bar.style.height = `${MIN_HEIGHT}px`;
-      });
+      levelRef.current = 0;
       return;
     }
 
-    if (!barsRef.current.length) return;
-
-    const updateBars = () => {
+    const updateLevel = () => {
       if (statusRef.current !== 'recording' || !analyserRef.current) {
         if (waveAnimationRef.current) {
           cancelAnimationFrame(waveAnimationRef.current);
           waveAnimationRef.current = null;
         }
-        barsRef.current.forEach((bar) => {
-          if (bar) bar.style.height = `${MIN_HEIGHT}px`;
-        });
+        levelRef.current = 0;
         return;
       }
-
       const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
       analyserRef.current.getByteFrequencyData(dataArray);
-
-      CENTER_ORDER.forEach((barIndex, i) => {
-        const bar = barsRef.current[barIndex];
-        if (!bar) return;
-
-        const freqIndex = Math.floor(10 + (i * 8));
-        const raw = dataArray[freqIndex] / 255;
-        const value = Math.min(1, raw * 2.5);
-        const centerIntensity = 1 - Math.abs(i - CENTER_ORDER.length / 2) / (CENTER_ORDER.length / 2);
-        const height = MIN_HEIGHT + value * (MAX_HEIGHT - MIN_HEIGHT) * centerIntensity;
-
-        bar.style.height = `${Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, height))}px`;
-      });
-
-      waveAnimationRef.current = requestAnimationFrame(updateBars);
+      let sum = 0;
+      const start = 4;
+      const end = Math.min(48, dataArray.length);
+      for (let i = start; i < end; i++) sum += dataArray[i];
+      levelRef.current = Math.min(1, (sum / (end - start) / 255) * 2.8);
+      waveAnimationRef.current = requestAnimationFrame(updateLevel);
     };
-
-    updateBars();
-
+    updateLevel();
     return () => {
       if (waveAnimationRef.current) {
         cancelAnimationFrame(waveAnimationRef.current);
         waveAnimationRef.current = null;
       }
-      barsRef.current.forEach((bar) => {
-        if (bar) bar.style.height = `${MIN_HEIGHT}px`;
-      });
+      levelRef.current = 0;
     };
   }, [status]);
 
   return {
     status,
     errorMessage,
-    barsRef,
+    levelRef,
     cancelRecording,
     setContext,
     startRecording,

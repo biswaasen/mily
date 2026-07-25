@@ -1,17 +1,18 @@
 {
-  "name": "mily",
+  "name": "mickey",
   "version": "1.0.24",
-  "description": "mily",
+  "description": "mickey — voice typing with your own api key",
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:react": "node build.js",
-    "dev": "node build.js --watch & electron .",
-    "start": "npm run build:react && electron .",
-    "build": "export $(cat .env | xargs) && NODE_ENV=production npm run build:react && electron-builder --mac --x64 --arm64",
-    "dist": "export $(cat .env | xargs) && NODE_ENV=production npm run build:react && electron-builder --mac --x64 --arm64",
+    "build:fn": "mkdir -p native && swiftc -O -o native/fn-listener native/fn-listener.swift",
+    "dev": "npm run build:fn && node build.js --watch & electron .",
+    "start": "npm run build:fn && npm run build:react && electron .",
+    "build": "export $(cat .env | xargs) && npm run build:fn && NODE_ENV=production npm run build:react && electron-builder --mac --x64 --arm64",
+    "dist": "export $(cat .env | xargs) && npm run build:fn && NODE_ENV=production npm run build:react && electron-builder --mac --x64 --arm64",
     "upload": "node scripts/upload-to-gcs.js",
-    "publish": "export $(cat .env | xargs) && NODE_ENV=production npm run build:react && electron-builder --mac --x64 --arm64 && npm run upload",
+    "publish": "export $(cat .env | xargs) && npm run build:fn && NODE_ENV=production npm run build:react && electron-builder --mac --x64 --arm64 && npm run upload",
     "version": "npm version patch"
   },
   "keywords": [],
@@ -42,23 +43,26 @@
     "typescript": "^5.9.3"
   },
   "build": {
-    "appId": "com.mily.app",
-    "productName": "Mily",
+    "appId": "com.mickey.app",
+    "productName": "mickey",
     "publish": {
       "provider": "generic",
-      "url": "https://storage.googleapis.com/mily-releases"
+      "url": "https://storage.googleapis.com/mickey-releases"
     },
     "protocols": [
       {
-        "name": "mily",
+        "name": "mickey",
         "schemes": [
-          "mily"
+          "mickey"
         ]
       }
     ],
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "public/logo.icns",
+      "extendInfo": {
+        "LSUIElement": true
+      },
       "target": [
         {
           "target": "dmg",
@@ -112,6 +116,12 @@
     "directories": {
       "output": "dist"
     },
+    "extraResources": [
+      {
+        "from": "native/fn-listener",
+        "to": "fn-listener"
+      }
+    ],
     "afterSign": "scripts/notarize.js"
   }
 }

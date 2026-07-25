@@ -4,6 +4,8 @@ const windows = require("./windows");
 
 let inputWindowRef = null;
 
+const SELF_APPS = new Set(["mickey", "Mickey", "Electron", "Mily"]);
+
 function setInputWindow(window) {
   inputWindowRef = window;
 }
@@ -21,60 +23,55 @@ function safeAppName(name) {
   return (name || "").replace(/"/g, '""');
 }
 
-function pasteText(newText, targetApp) {
-  clipboard.writeText(newText);
+function isSelfApp(name) {
+  return !name || SELF_APPS.has(name);
+}
 
-  if (!targetApp || targetApp === "Electron" || targetApp === "Mily") {
-    const mainWin = windows.getSafeMainWindow();
-    if (mainWin && !mainWin.isDestroyed()) {
-      mainWin.webContents.executeJavaScript(`
-        const activeElement = document.activeElement;
-        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
-          const text = \`${newText.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`;
-          const start = activeElement.selectionStart || 0;
-          const end = activeElement.selectionEnd || 0;
-          const currentValue = activeElement.value || '';
-          const newValue = currentValue.substring(0, start) + text + currentValue.substring(end);
-          activeElement.value = newValue;
-          activeElement.selectionStart = activeElement.selectionEnd = start + text.length;
-          activeElement.dispatchEvent(new Event('input', { bubbles: true }));
-          activeElement.dispatchEvent(new Event('change', { bubbles: true }));
-          true;
-        } else {
-          false;
-        }
-      `).then((handled) => {
-        if (!handled) {
-          mainWin.focus();
-          setTimeout(() => {
-            exec('osascript -e \'tell application "System Events" to keystroke "v" using command down\'', (error) => {
-              if (error) sendError("Failed to paste");
-            });
-          }, 100);
-        }
-      }).catch(() => {
-        sendError("Failed to paste");
-      });
-      return;
+function pasteIntoFrontmost() {
+  exec(
+    'osascript -e \'tell application "System Events" to keystroke "v" using command down\'',
+    (error) => {
+      if (error) sendError("Failed to paste");
     }
+  );
+}
+
+function tryInjectIntoPanel(newText) {
+  const mainWin = windows.getSafeMainWindow();
+  if (!mainWin || mainWin.isDestroyed() || !mainWin.isVisible() || !mainWin.isFocused()) {
+    return false;
   }
 
-  const script = targetApp
-    ? `tell application "${safeAppName(targetApp)}"
-        activate
-      end tell
-      tell application "System Events"
-        keystroke "v" using command down
-      end tell`
-    : `tell application "System Events" to keystroke "v" using command down`;
+  const escaped = newText.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$/g, "\\$");
+  mainWin.webContents
+    .executeJavaScript(`
+      (() => {
+        const el = document.activeElement;
+        if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return false;
+        const text = \`${escaped}\`;
+        const start = el.selectionStart || 0;
+        const end = el.selectionEnd || 0;
+        const value = el.value || '';
+        el.value = value.slice(0, start) + text + value.slice(end);
+        el.selectionStart = el.selectionEnd = start + text.length;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()
+    `)
+    .then((handled) => {
+      if (!handled) pasteIntoFrontmost();
+    })
+    .catch(() => pasteIntoFrontmost());
 
-  exec(`osascript -e '${escapeForShell(script)}'`, (error) => {
-    if (error) {
-      setTimeout(() => {
-        exec('osascript -e \'tell application "System Events" to keystroke "v" using command down\'', () => {});
-      }, 300);
-    }
-  });
+  return true;
+}
+
+/** Paste into whatever is frontmost now — never re-activate a stale app. */
+function pasteText(newText) {
+  clipboard.writeText(newText);
+  if (tryInjectIntoPanel(newText)) return;
+  pasteIntoFrontmost();
 }
 
 const KEY_CODE_MAP = {
@@ -104,7 +101,9 @@ const MODIFIER_MAP = {
 function pressKey(key, modifiers = []) {
   const keyName = (key || "").toLowerCase();
   const keyCode = KEY_CODE_MAP[keyName];
-  const modString = modifiers.length ? " using " + modifiers.map((m) => MODIFIER_MAP[m.toLowerCase()] || m).join(" ") : "";
+  const modString = modifiers.length
+    ? " using " + modifiers.map((m) => MODIFIER_MAP[m.toLowerCase()] || m).join(" ")
+    : "";
 
   let script;
   if (keyCode !== undefined) {
@@ -159,11 +158,8 @@ function executeSystemCommand(command) {
     return;
   }
   if (command.action === "press_key") {
-    if (command.key) {
-      pressKey(command.key, command.modifiers || []);
-    } else {
-      sendError("No key provided");
-    }
+    if (command.key) pressKey(command.key, command.modifiers || []);
+    else sendError("No key provided");
     return;
   }
   if (command.action === "take_screenshot") {
@@ -178,4 +174,5 @@ module.exports = {
   pasteText,
   executeSystemCommand,
   sendError,
+  isSelfApp,
 };

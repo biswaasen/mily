@@ -10,75 +10,35 @@ const config = loadConfig();
 
 function setupMenus() {
   if (process.platform !== "darwin") return;
-
-  const appMenu = Menu.buildFromTemplate([
-    {
-      label: app.name,
-      submenu: [
-        { role: "about" },
-        { type: "separator" },
-        { role: "hide" },
-        { role: "hideOthers" },
-        { role: "unhide" },
-        { type: "separator" },
-        { role: "quit" }
-      ]
-    },
-    {
-      label: "Edit",
-      submenu: [
-        { role: "undo" },
-        { role: "redo" },
-        { type: "separator" },
-        { role: "cut" },
-        { role: "copy" },
-        { role: "paste" },
-        { role: "selectAll" }
-      ]
-    },
-    {
-      label: "Window",
-      submenu: [
-        { role: "minimize" },
-        { role: "close" },
-        { type: "separator" },
-        {
-          label: "Show Dashboard",
-          accelerator: "CmdOrCtrl+Shift+D",
-          click: () => windows.showMainWindow()
-        }
-      ]
-    }
-  ]);
-  Menu.setApplicationMenu(appMenu);
-
-  const dockMenu = Menu.buildFromTemplate([
-    {
-      label: "Show Dashboard",
-      click: () => windows.showMainWindow()
-    },
-    {
-      label: "Quit Mily",
-      click: () => app.quit()
-    }
-  ]);
-  app.dock.setMenu(dockMenu);
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      {
+        label: app.name,
+        submenu: [{ role: "about" }, { type: "separator" }, { role: "quit" }],
+      },
+      {
+        label: "Edit",
+        submenu: [
+          { role: "undo" },
+          { role: "redo" },
+          { type: "separator" },
+          { role: "cut" },
+          { role: "copy" },
+          { role: "paste" },
+          { role: "selectAll" },
+        ],
+      },
+    ])
+  );
 }
 
 function initializeApp() {
-  app.setName("Mily");
+  app.setName("mickey");
+  store.migrateFromLegacy();
 
-  if (process.platform === "darwin" && app.dock) {
-    app.dock.show();
-  }
+  if (process.platform === "darwin" && app.dock) app.dock.hide();
 
-  app.on("second-instance", () => {
-    const main = windows.getSafeMainWindow();
-    if (main) {
-      if (main.isMinimized()) main.restore();
-      main.focus();
-    }
-  });
+  app.on("second-instance", () => windows.showMainWindow());
 
   windows.createMainWindow();
   windows.setupFileWatchers();
@@ -86,28 +46,19 @@ function initializeApp() {
   setupMenus();
 
   const groqApiKey = store.getGroqApiKey();
-  if (groqApiKey) {
-    windows.createInputWindow();
-    systemCommands.setInputWindow(windows.getInputWindow());
-  }
+  windows.createInputWindow();
+  systemCommands.setInputWindow(windows.getInputWindow());
+  if (!groqApiKey) windows.showMainWindow();
 
-  screen.on("display-added", () => {
-    windows.updateInputWindowPosition();
-  });
-
-  screen.on("display-removed", () => {
-    windows.updateInputWindowPosition();
-  });
-
-  screen.on("display-metrics-changed", () => {
-    windows.updateInputWindowPosition();
-  });
+  screen.on("display-added", () => windows.updateInputWindowPosition());
+  screen.on("display-removed", () => windows.updateInputWindowPosition());
+  screen.on("display-metrics-changed", () => windows.updateInputWindowPosition());
 
   app.on("will-quit", () => {
     const { globalShortcut } = require("electron");
     globalShortcut.unregisterAll();
-    const keyMonitor = require("./services/key-monitor");
-    keyMonitor.stopKeyMonitoring();
+    require("./services/key-monitor").stopKeyMonitoring();
+    require("./services/fn-listener").stopFnListener();
   });
 
   app.on("before-quit", () => {
@@ -130,7 +81,4 @@ if (!gotTheLock) {
 }
 
 app.on("window-all-closed", () => {});
-
-app.on("activate", () => {
-  windows.showMainWindow();
-});
+app.on("activate", () => windows.showMainWindow());

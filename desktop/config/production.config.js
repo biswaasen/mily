@@ -1,3 +1,3 @@
 module.exports = {
-  UPDATE_URL: 'https://storage.googleapis.com/mily-releases',
+  UPDATE_URL: 'https://storage.googleapis.com/mickey-releases',
 };

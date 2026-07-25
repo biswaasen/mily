@@ -2,8 +2,8 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const BUCKET = 'gs://mily-releases';
-const PUBLIC_URL = 'https://storage.googleapis.com/mily-releases';
+const BUCKET = 'gs://mickey-releases';
+const PUBLIC_URL = 'https://storage.googleapis.com/mickey-releases';
 
 function gcsUpload(localPath, remoteName, contentType) {
   const dest = `${BUCKET}/${remoteName}`;
@@ -27,22 +27,22 @@ async function uploadToGcs() {
 
   const filePatterns = [
     {
-      dmg: `Mily-${version}-arm64.dmg`,
-      zip: `Mily-${version}-arm64-mac.zip`,
-      dmgBlockmap: `Mily-${version}-arm64.dmg.blockmap`,
-      zipBlockmap: `Mily-${version}-arm64-mac.zip.blockmap`,
+      dmg: `mickey-${version}-arm64.dmg`,
+      zip: `mickey-${version}-arm64-mac.zip`,
+      dmgBlockmap: `mickey-${version}-arm64.dmg.blockmap`,
+      zipBlockmap: `mickey-${version}-arm64-mac.zip.blockmap`,
     },
     {
-      dmg: `Mily-${version}-x64.dmg`,
-      zip: `Mily-${version}-x64-mac.zip`,
-      dmgBlockmap: `Mily-${version}-x64.dmg.blockmap`,
-      zipBlockmap: `Mily-${version}-x64-mac.zip.blockmap`,
+      dmg: `mickey-${version}-x64.dmg`,
+      zip: `mickey-${version}-x64-mac.zip`,
+      dmgBlockmap: `mickey-${version}-x64.dmg.blockmap`,
+      zipBlockmap: `mickey-${version}-x64-mac.zip.blockmap`,
     },
     {
-      dmg: `Mily-${version}.dmg`,
-      zip: `Mily-${version}-mac.zip`,
-      dmgBlockmap: `Mily-${version}.dmg.blockmap`,
-      zipBlockmap: `Mily-${version}-mac.zip.blockmap`,
+      dmg: `mickey-${version}.dmg`,
+      zip: `mickey-${version}-mac.zip`,
+      dmgBlockmap: `mickey-${version}.dmg.blockmap`,
+      zipBlockmap: `mickey-${version}-mac.zip.blockmap`,
     },
   ];
 
@@ -72,7 +72,7 @@ async function uploadToGcs() {
 
   filesToUpload.push({ name: ymlFile, path: ymlPath, type: 'application/x-yaml' });
 
-  console.log(`\nUploading ${filesToUpload.length} file(s) to GCS bucket [mily-releases]...\n`);
+  console.log(`\nUploading ${filesToUpload.length} file(s) to GCS bucket [mickey-releases]...\n`);
 
   for (const file of filesToUpload) {
     gcsUpload(file.path, file.name, file.type);

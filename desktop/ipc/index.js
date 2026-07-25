@@ -7,14 +7,21 @@ const config = require("./config");
 const store = require("../store");
 const groqService = require("../services/groq-service");
 const localMemory = require("../services/local-memory");
+const localLinks = require("../services/local-links");
 const localMessages = require("../services/local-messages");
 
 function setupIpcHandlers(configObj) {
   systemCommands.setInputWindow(windows.getInputWindow());
 
-  // Migrate stale system prompts to the new default
+  // Force migrate to intent-router prompt
   const currentPrompt = store.getSystemPrompt();
-  if (currentPrompt && (currentPrompt.includes("ALWAYS respond with ONLY the JSON object") || currentPrompt.includes("CRITICAL: Output ONLY the JSON object"))) {
+  if (
+    !currentPrompt ||
+    currentPrompt.includes("transcription assistant") ||
+    currentPrompt.includes("ALWAYS respond with ONLY the JSON") ||
+    currentPrompt.includes("CRITICAL: Output ONLY the JSON") ||
+    !currentPrompt.includes("intent router")
+  ) {
     store.resetSystemPrompt();
   }
 
@@ -36,13 +43,44 @@ function setupIpcHandlers(configObj) {
     }
   });
 
-  ipcMain.handle("verify-groq-key", async (_, key) => {
-    return groqService.verifyApiKey(key);
-  });
-
+  ipcMain.handle("verify-groq-key", async (_, key) => groqService.verifyApiKey(key));
   ipcMain.handle("get-groq-key", () => store.getGroqApiKey());
   ipcMain.handle("set-groq-key", (_, key) => {
     store.setGroqApiKey(key);
+    const existing = windows.getSafeInputWindow();
+    if (!existing || existing.isDestroyed()) {
+      windows.createInputWindow();
+      systemCommands.setInputWindow(windows.getInputWindow());
+    }
+    return true;
+  });
+
+  ipcMain.handle("ensure-buddy", () => {
+    const existing = windows.getSafeInputWindow();
+    if (!existing || existing.isDestroyed()) {
+      windows.createInputWindow();
+      systemCommands.setInputWindow(windows.getInputWindow());
+    }
+    return true;
+  });
+
+  ipcMain.handle("get-provider-settings", () => ({
+    provider: store.getProvider(),
+    chatModel: store.getChatModel(),
+    sttModel: store.getSttModel(),
+    providers: store.listProviders(),
+    apiKey: store.getGroqApiKey() || "",
+  }));
+  ipcMain.handle("set-provider", (_, id) => {
+    store.setProvider(id);
+    return store.getProvider();
+  });
+  ipcMain.handle("set-chat-model", (_, model) => {
+    store.setChatModel(model);
+    return true;
+  });
+  ipcMain.handle("set-stt-model", (_, model) => {
+    store.setSttModel(model);
     return true;
   });
 
@@ -65,6 +103,10 @@ function setupIpcHandlers(configObj) {
   ipcMain.handle("get-memories", () => localMemory.getMemories());
   ipcMain.handle("add-memory", (_, content) => localMemory.addMemory(content));
   ipcMain.handle("delete-memory", (_, id) => localMemory.deleteMemory(id));
+
+  ipcMain.handle("get-links", () => localLinks.getLinks());
+  ipcMain.handle("add-link", (_, name, url) => localLinks.addLink(name, url));
+  ipcMain.handle("delete-link", (_, id) => localLinks.deleteLink(id));
 
   ipcMain.handle("get-messages", (_, page, limit) => localMessages.getMessages(page, limit));
   ipcMain.handle("clear-messages", () => {

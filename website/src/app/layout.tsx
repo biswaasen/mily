@@ -1,42 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 
-import { EB_Garamond, Plus_Jakarta_Sans } from "next/font/google";
-
-const inter = Inter({
-  variable: "--font-inter",
+const grotesk = Space_Grotesk({
+  variable: "--font-grotesk",
   subsets: ["latin"],
   display: "swap",
 });
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const garamond = EB_Garamond({
-  variable: "--font-garamond",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta-sans",
+const mono = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Mily",
+  title: "mickey — voice typing, your keys",
   description:
-    "Your Voice Is Your Superpower.",
+    "Open-source voice typing for macOS. Hold Fn, speak, paste anywhere. Bring your own API key — no subscription.",
   icons: {
     icon: "/favicon.ico",
   },
@@ -48,9 +30,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${inter.variable} ${geistMono.variable} ${garamond.variable} ${plusJakartaSans.variable} antialiased`}
+        className={`${grotesk.variable} ${mono.variable} antialiased bg-black text-white`}
+        style={{ fontFamily: "var(--font-grotesk), system-ui, sans-serif" }}
       >
         {children}
         <Analytics />

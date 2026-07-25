@@ -6,11 +6,12 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-garamond: var(--font-garamond);
-  --font-inter: var(--font-inter);
-  --font-jakarta: var(--font-plus-jakarta-sans);
+  --font-sans: var(--font-grotesk);
+  --font-mono: var(--font-mono);
+  --font-fraunces: var(--font-grotesk);
+  --font-garamond: var(--font-grotesk);
+  --font-inter: var(--font-grotesk);
+  --font-jakarta: var(--font-grotesk);
   --font-size-xs: 0.75rem;
   --font-size-xs\.5: 0.8125rem;
   --font-size-sm: 0.875rem;
@@ -162,7 +163,7 @@ body::-webkit-scrollbar,
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground font-inter;
+    @apply bg-background text-foreground font-sans;
   }
 }
 

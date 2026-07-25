@@ -1,59 +1,65 @@
-const { ipcMain, globalShortcut } = require("electron");
 const { exec } = require("child_process");
 const windows = require("../windows");
 const systemCommands = require("../system-commands");
-const store = require("../store");
 const keyMonitor = require("../services/key-monitor");
+const fnListener = require("../services/fn-listener");
 
 const activeProcessingOps = new Map();
 let currentTargetApp = "";
-let lastNonMilyApp = "";
+let lastExternalApp = "";
+let holdArmed = false;
 
 function getCurrentApp(callback) {
-  exec('osascript -e \'tell application "System Events" to get name of first application process whose frontmost is true\'', (error, stdout) => {
-    let currentApp = lastNonMilyApp;
-    if (!error && stdout) {
-      const detectedApp = stdout.trim();
-      if (detectedApp !== "Mily" && detectedApp !== "Electron") {
-        currentApp = detectedApp;
-        lastNonMilyApp = detectedApp;
+  exec(
+    'osascript -e \'tell application "System Events" to get name of first application process whose frontmost is true\'',
+    (error, stdout) => {
+      let currentApp = lastExternalApp;
+      if (!error && stdout) {
+        const detectedApp = stdout.trim();
+        if (!systemCommands.isSelfApp(detectedApp)) {
+          currentApp = detectedApp;
+          lastExternalApp = detectedApp;
+        }
       }
+      currentTargetApp = currentApp;
+      callback(currentApp);
     }
-    currentTargetApp = currentApp;
-    callback(currentApp);
-  });
+  );
+}
+
+function sendToInput(channel, ...args) {
+  const win = windows.getSafeInputWindow();
+  if (win && !win.isDestroyed()) win.webContents.send(channel, ...args);
 }
 
 function registerShortcut() {
-  globalShortcut.unregisterAll();
   keyMonitor.stopKeyMonitoring();
 
-  const shortcutKey = store.getShortcutKey() || "d";
-  const shortcut = `CommandOrControl+${shortcutKey}`;
-  const registered = globalShortcut.register(shortcut, () => {});
+  try {
+    keyMonitor.startKeyMonitoring(() => {}, () => sendToInput("cancel-recording"));
+  } catch (_) {}
 
-  if (!registered) {
-    console.error(`[Recording] Failed to register global shortcut: ${shortcut}`);
-    return false;
-  }
-
-  const onToggle = () => {
-    const win = windows.getSafeInputWindow();
-    if (!win || win.isDestroyed()) return;
-    getCurrentApp((currentApp) => win.webContents.send("toggle-recording", currentApp));
-  };
-
-  const onEsc = () => {
-    const win = windows.getSafeInputWindow();
-    if (win && !win.isDestroyed()) win.webContents.send("cancel-recording");
-  };
-
-  const success = keyMonitor.startKeyMonitoring(onToggle, onEsc);
-  return success && registered;
+  return fnListener.startFnListener({
+    down: () => {
+      holdArmed = true;
+      getCurrentApp((currentApp) => {
+        if (!holdArmed) return;
+        sendToInput("start-recording", currentApp);
+      });
+    },
+    up: () => {
+      holdArmed = false;
+      sendToInput("stop-recording");
+    },
+    interrupted: () => {
+      holdArmed = false;
+      sendToInput("cancel-recording");
+    },
+  });
 }
 
-function setupRecordingHandlers(ipcMain) {
-  ipcMain.on("http-result", async (_, result) => {
+function setupRecordingHandlers(ipcMainRef) {
+  ipcMainRef.on("http-result", async (_, result) => {
     const operationId = Date.now().toString();
     activeProcessingOps.set(operationId, true);
     const input = windows.getSafeInputWindow();
@@ -66,10 +72,18 @@ function setupRecordingHandlers(ipcMain) {
     };
 
     try {
+      const action = result?.action;
+      if (action && (action.action === "open_url" || action.action === "open_app")) {
+        systemCommands.executeSystemCommand(action);
+        setTimeout(sendComplete, 80);
+        return;
+      }
+
       if (result.response) {
         setTimeout(() => {
           if (activeProcessingOps.has(operationId)) {
-            systemCommands.pasteText(result.response, currentTargetApp);
+            // Paste into whatever is frontmost now (user may have switched apps mid-hold)
+            systemCommands.pasteText(result.response);
             sendComplete();
           }
         }, 300);
@@ -85,21 +99,25 @@ function setupRecordingHandlers(ipcMain) {
     }
   });
 
-  ipcMain.on("cancel-processing", () => {
+  ipcMainRef.on("cancel-processing", () => {
     activeProcessingOps.clear();
     const input = windows.getSafeInputWindow();
     if (input) input.webContents.send("processing-complete");
   });
 
-  ipcMain.on("enable-mouse-events", () => {
+  ipcMainRef.on("enable-mouse-events", () => {
     const input = windows.getSafeInputWindow();
     if (input) input.setIgnoreMouseEvents(false);
   });
 
-  ipcMain.on("disable-mouse-events", () => {
+  ipcMainRef.on("disable-mouse-events", () => {
     const input = windows.getSafeInputWindow();
     if (input) input.setIgnoreMouseEvents(true, { forward: true });
   });
+
+  ipcMainRef.handle("get-buddy-bounds", () => windows.getBuddyBounds());
+  ipcMainRef.on("move-buddy", (_, { x, y }) => windows.moveBuddy(x, y));
+  ipcMainRef.on("save-buddy-position", () => windows.saveBuddyPosition());
 }
 
 module.exports = { getCurrentApp, registerShortcut, setupRecordingHandlers };
