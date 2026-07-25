@@ -16,9 +16,9 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "mickey — voice typing, your keys",
+  title: "mickey",
   description:
-    "Open-source voice typing for macOS. Hold Fn, speak, paste anywhere. Bring your own API key — no subscription.",
+    "Speak while you work. Mickey types for you or opens what you ask for.",
   icons: {
     icon: "/favicon.ico",
   },
