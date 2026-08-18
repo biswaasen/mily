@@ -20,8 +20,14 @@ Rules:
 5) If they say open/play but nothing matches Saved links and it is not clearly an app, use transcript with cleaned text.`;
 
 const DEFAULT_PROVIDER = "groq";
-const DEFAULT_CHAT_MODEL = "llama-3.3-70b-versatile";
+const DEFAULT_CHAT_MODEL = "openai/gpt-oss-120b";
 const DEFAULT_STT_MODEL = "whisper-large-v3-turbo";
+
+const DEPRECATED_CHAT_MODELS = {
+  "llama-3.3-70b-versatile": "openai/gpt-oss-120b",
+  "llama-3.1-8b-instant": "openai/gpt-oss-20b",
+  "qwen/qwen3-32b": "openai/gpt-oss-120b",
+};
 
 const PROVIDERS = {
   groq: {
@@ -31,10 +37,9 @@ const PROVIDERS = {
     keyHint: "gsk_…",
     keyUrl: "https://console.groq.com/keys",
     chatModels: [
-      "llama-3.3-70b-versatile",
-      "llama-3.1-8b-instant",
       "openai/gpt-oss-120b",
-      "qwen/qwen3-32b",
+      "openai/gpt-oss-20b",
+      "qwen/qwen3.6-27b",
     ],
     sttModels: ["whisper-large-v3-turbo", "whisper-large-v3"],
   },
@@ -60,29 +65,38 @@ const store = new Store({
 
 function migrateFromLegacy() {
   try {
-    if (store.get("groqApiKey")) return;
-    const { app } = require("electron");
-    const fs = require("fs");
-    const path = require("path");
-    const userData = app.getPath("userData");
-    const candidates = [
-      path.join(userData, "mily-config.json"),
-      path.join(userData, "..", "mily", "mily-config.json"),
-      path.join(userData, "..", "Mily", "mily-config.json"),
-      path.join(userData, "..", "Electron", "mily-config.json"),
-    ];
-    for (const oldPath of candidates) {
-      if (!fs.existsSync(oldPath)) continue;
-      const old = JSON.parse(fs.readFileSync(oldPath, "utf8"));
-      [
-        "groqApiKey", "provider", "chatModel", "sttModel", "userName", "systemPrompt",
-        "memories", "links", "messages", "buddyPosition", "onboardingCompleted", "shortcutKey",
-      ].forEach((k) => {
-        if (old[k] !== undefined && old[k] !== null) store.set(k, old[k]);
-      });
-      if (store.get("groqApiKey")) break;
+    if (!store.get("groqApiKey")) {
+      const { app } = require("electron");
+      const fs = require("fs");
+      const path = require("path");
+      const userData = app.getPath("userData");
+      const candidates = [
+        path.join(userData, "mily-config.json"),
+        path.join(userData, "..", "mily", "mily-config.json"),
+        path.join(userData, "..", "Mily", "mily-config.json"),
+        path.join(userData, "..", "Electron", "mily-config.json"),
+      ];
+      for (const oldPath of candidates) {
+        if (!fs.existsSync(oldPath)) continue;
+        const old = JSON.parse(fs.readFileSync(oldPath, "utf8"));
+        [
+          "groqApiKey", "provider", "chatModel", "sttModel", "userName", "systemPrompt",
+          "memories", "links", "messages", "buddyPosition", "onboardingCompleted", "shortcutKey",
+        ].forEach((k) => {
+          if (old[k] !== undefined && old[k] !== null) store.set(k, old[k]);
+        });
+        if (store.get("groqApiKey")) break;
+      }
     }
   } catch (_) {}
+  migrateDeprecatedModels();
+}
+
+function migrateDeprecatedModels() {
+  const chatModel = store.get("chatModel");
+  if (chatModel && DEPRECATED_CHAT_MODELS[chatModel]) {
+    store.set("chatModel", DEPRECATED_CHAT_MODELS[chatModel]);
+  }
 }
 
 const getOnboardingCompleted = () => store.get("onboardingCompleted");
@@ -103,7 +117,15 @@ const setProvider = (id) => {
   return id;
 };
 
-const getChatModel = () => store.get("chatModel") || DEFAULT_CHAT_MODEL;
+const getChatModel = () => {
+  const model = store.get("chatModel") || DEFAULT_CHAT_MODEL;
+  const replacement = DEPRECATED_CHAT_MODELS[model];
+  if (replacement) {
+    store.set("chatModel", replacement);
+    return replacement;
+  }
+  return model;
+};
 const setChatModel = (model) => store.set("chatModel", model);
 
 const getSttModel = () => store.get("sttModel") || DEFAULT_STT_MODEL;
