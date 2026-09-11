@@ -1,79 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAudioRecording } from '../../hooks/useAudioRecording';
-import { BuddyIcon } from './duck';
+import { WaveBars } from './waves';
 import { useIpc } from '../../hooks/useIpc';
-
-const DRAG_THRESHOLD = 4;
 
 export const Dialog: React.FC = () => {
   const [context] = useState('');
-  const [dragging, setDragging] = useState(false);
-  const { status, levelRef, setContext: setRecordingContext } = useAudioRecording();
+  const [hoverHint, setHoverHint] = useState(false);
+  const { status, errorMessage, barsRef, setContext: setRecordingContext } = useAudioRecording();
   const ipcRenderer = useIpc();
 
-  const dragRef = useRef({
-    active: false,
-    moved: false,
-    startX: 0,
-    startY: 0,
-    originX: 0,
-    originY: 0,
-  });
+  const hasError = errorMessage.trim().length > 0;
+  const showError = hasError && status === 'idle';
+  const showHoverHint = hoverHint && status === 'idle' && !showError;
 
   useEffect(() => {
     setRecordingContext(context);
   }, [context, setRecordingContext]);
-
-  const onPointerDown = useCallback(async (e: React.PointerEvent) => {
-    if (e.button === 2) {
-      e.preventDefault();
-      ipcRenderer.send('buddy-context-menu');
-      return;
-    }
-    if (e.button !== 0) return;
-    e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = {
-      active: true,
-      moved: false,
-      startX: e.screenX,
-      startY: e.screenY,
-      originX: 0,
-      originY: 0,
-    };
-    try {
-      const bounds = await ipcRenderer.invoke('get-buddy-bounds');
-      if (!dragRef.current.active) return;
-      dragRef.current.originX = bounds?.x ?? 0;
-      dragRef.current.originY = bounds?.y ?? 0;
-    } catch {}
-  }, [ipcRenderer]);
-
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current.active) return;
-    const dx = e.screenX - dragRef.current.startX;
-    const dy = e.screenY - dragRef.current.startY;
-    if (!dragRef.current.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-    if (!dragRef.current.moved) {
-      dragRef.current.moved = true;
-      setDragging(true);
-    }
-    ipcRenderer.send('move-buddy', {
-      x: Math.round(dragRef.current.originX + dx),
-      y: Math.round(dragRef.current.originY + dy),
-    });
-  }, [ipcRenderer]);
-
-  const onPointerUp = useCallback((e: React.PointerEvent) => {
-    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
-    const wasDrag = dragRef.current.moved;
-    const wasActive = dragRef.current.active;
-    dragRef.current.active = false;
-    dragRef.current.moved = false;
-    setDragging(false);
-    if (wasActive && wasDrag) ipcRenderer.send('save-buddy-position');
-    else if (wasActive && !wasDrag && e.button === 0) ipcRenderer.send('toggle-panel');
-  }, [ipcRenderer]);
 
   return (
     <div
@@ -82,16 +24,60 @@ export const Dialog: React.FC = () => {
         width: '100%',
         height: '100%',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-end',
+        paddingBottom: 10,
+        pointerEvents: 'none',
       }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      onContextMenu={(e) => { e.preventDefault(); ipcRenderer.send('buddy-context-menu'); }}
     >
-      <BuddyIcon status={status} levelRef={levelRef} dragging={dragging} />
+      <div
+        style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'auto' }}
+        onMouseEnter={() => {
+          setHoverHint(true);
+          ipcRenderer.send('enable-mouse-events');
+        }}
+        onMouseLeave={() => {
+          setHoverHint(false);
+          ipcRenderer.send('disable-mouse-events');
+        }}
+        onClick={() => ipcRenderer.send('toggle-panel')}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          ipcRenderer.send('buddy-context-menu');
+        }}
+      >
+        <div
+          style={{
+            borderRadius: 999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '5px 8px',
+            background: hasError ? 'rgba(18, 18, 18, 0.82)' : 'rgba(18, 18, 18, 0.78)',
+            border: `1px solid ${hasError ? 'rgba(255, 100, 100, 0.3)' : 'rgba(255, 255, 255, 0.12)'}`,
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            opacity: 0.85,
+            cursor: 'pointer',
+          }}
+        >
+          {showHoverHint ? (
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, textAlign: 'center', whiteSpace: 'nowrap', lineHeight: 1.4, fontFamily: 'system-ui, sans-serif' }}>
+              Hold Fn to speak
+            </div>
+          ) : showError ? (
+            <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, textAlign: 'center', whiteSpace: 'nowrap', lineHeight: 1.4, padding: '0 8px', fontFamily: 'system-ui, sans-serif' }}>
+              {errorMessage}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 0 }}>
+              <WaveBars status={status} barsRef={barsRef} />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

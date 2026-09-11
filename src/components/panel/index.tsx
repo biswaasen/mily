@@ -435,7 +435,7 @@ const s: Record<string, React.CSSProperties> = {
   shell: {
     position: 'relative',
     height: '100%', width: '100%', display: 'flex', flexDirection: 'column',
-    background: 'rgba(0, 0, 0, 0.82)', color: '#f4f4f5',
+    background: 'rgba(0, 0, 0, 0.9)', color: '#f4f4f5',
     backdropFilter: 'blur(28px) saturate(1.2)',
     WebkitBackdropFilter: 'blur(28px) saturate(1.2)',
     border: '1px solid rgba(255,255,255,0.07)',
@@ -445,7 +445,7 @@ const s: Record<string, React.CSSProperties> = {
   } as React.CSSProperties,
   header: {
     display: 'flex', alignItems: 'center', gap: 6,
-    padding: '10px 10px 0 10px',
+    padding: '10px 10px 4px 10px',
   },
   close: {
     WebkitAppRegion: 'no-drag',
@@ -469,7 +469,7 @@ const s: Record<string, React.CSSProperties> = {
     border: '1px solid rgba(255,255,255,0.07)',
   },
   body: {
-    WebkitAppRegion: 'no-drag', flex: 1, overflowY: 'auto', padding: '12px 12px 14px',
+    WebkitAppRegion: 'no-drag', flex: 1, overflowY: 'auto', padding: '8px 12px 14px',
     minHeight: 0, display: 'flex', flexDirection: 'column',
   } as React.CSSProperties,
   settings: {

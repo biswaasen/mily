@@ -12,8 +12,8 @@ let panelGotFocus = false;
 
 const PANEL_WIDTH = 360;
 const PANEL_HEIGHT = 480;
-const BUDDY_WIDTH = 56;
-const BUDDY_HEIGHT = 26;
+const BUDDY_WIDTH = 480;
+const BUDDY_HEIGHT = 60;
 
 function getSafeMainWindow() {
   return mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
@@ -37,15 +37,15 @@ function clampBuddyPosition(x, y, display = screen.getPrimaryDisplay()) {
 
 function defaultBuddyPosition() {
   const d = screen.getPrimaryDisplay();
-  const { x: workX, y: workY, width: workW } = d.workArea;
-  return clampBuddyPosition(workX + workW - BUDDY_WIDTH - 20, workY + 16, d);
+  const { x: workX, y: workY, width: workW, height: workH } = d.workArea;
+  return clampBuddyPosition(
+    workX + (workW - BUDDY_WIDTH) / 2,
+    workY + workH - BUDDY_HEIGHT - 12,
+    d
+  );
 }
 
 function resolveBuddyPosition() {
-  const saved = store.getBuddyPosition();
-  if (saved && typeof saved.x === "number" && typeof saved.y === "number") {
-    return clampBuddyPosition(saved.x, saved.y, screen.getDisplayNearestPoint(saved));
-  }
   return defaultBuddyPosition();
 }
 
@@ -80,8 +80,8 @@ function positionPanelNearBuddy() {
   const { x: workX, y: workY, width: workW, height: workH } = display.workArea;
 
   let x = Math.round(anchor.x + (buddy ? buddy.width / 2 : 0) - PANEL_WIDTH / 2);
-  let y = Math.round(anchor.y + (buddy ? buddy.height : BUDDY_HEIGHT) + 8);
-  if (y + PANEL_HEIGHT > workY + workH - 8) y = Math.round(anchor.y - PANEL_HEIGHT - 8);
+  let y = Math.round(anchor.y - PANEL_HEIGHT - 10);
+  if (y < workY + 4) y = Math.round(anchor.y + (buddy ? buddy.height : BUDDY_HEIGHT) + 8);
 
   x = Math.max(workX + 8, Math.min(x, workX + workW - PANEL_WIDTH - 8));
   y = Math.max(workY + 4, Math.min(y, workY + workH - PANEL_HEIGHT - 8));
@@ -253,7 +253,7 @@ function createInputWindow() {
     updateInputWindowPosition();
     inputWindow.show();
     inputWindow.setAlwaysOnTop(true, "pop-up-menu");
-    inputWindow.setIgnoreMouseEvents(false);
+    inputWindow.setIgnoreMouseEvents(true, { forward: true });
   });
 
   inputWindow.on("minimize", (event) => {
