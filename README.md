@@ -40,7 +40,13 @@ Open **Settings → API key**. Click **get key** to create a [Groq API key](http
 
 Allow **Microphone**, **Accessibility**, and any requested **Automation** permissions in macOS Privacy & Security settings. Restart Mily after changing permissions.
 
-Focus a text field, **hold Fn/Globe**, speak, then **release**. Keep that field focused while Mily processes and pastes your text. **Escape** cancels.
+Focus a text field, **press and hold Fn/Globe**, speak, then **release**. Keep that field focused while Mily processes and pastes your text. **Escape** cancels.
+
+<p align="center">
+  <img src="docs/images/fn-key.png" width="400" alt="Mac keyboard showing the Fn/Globe key at the bottom left">
+</p>
+
+**Press and hold the Fn/Globe key at the bottom left while speaking. Release to finish.**
 
 Open **History** to review recent transcriptions or copy a result.
 
