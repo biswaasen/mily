@@ -7,8 +7,8 @@ A small, open-source macOS voice typing app. Hold **Fn/Globe** to speak, release
 Requires **macOS**, **Node.js 22.12+**, and **Xcode Command Line Tools** (`xcode-select --install`).
 
 ```sh
-git clone https://github.com/biswaasen/milycore.git
-cd milycore
+git clone https://github.com/biswaasen/mily.git
+cd mily
 npm ci
 npm start
 ```
@@ -56,7 +56,7 @@ In **Links**, enter a name and URL, then click **+**. Hold Fn and say **â€œOpenâ
   <img src="docs/images/links.png" width="400" alt="Links showing name and URL inputs and saved links">
 </p>
 
-Saved links open in your browser. Mily does not search websites or play videos for you. The screenshot contains example links; this repository is **biswaasen/milycore**.
+Saved links open in your browser. Mily does not search websites or play videos for you. The screenshot contains example links; this repository is **biswaasen/mily**.
 
 ## 5. Add custom words
 

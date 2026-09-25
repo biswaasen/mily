@@ -121,12 +121,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/biswaasen/milycore.git"
+    "url": "git+https://github.com/biswaasen/mily.git"
   },
   "bugs": {
-    "url": "https://github.com/biswaasen/milycore/issues"
+    "url": "https://github.com/biswaasen/mily/issues"
   },
-  "homepage": "https://github.com/biswaasen/milycore#readme",
+  "homepage": "https://github.com/biswaasen/mily#readme",
   "engines": {
     "node": ">=22.12.0"
   }
