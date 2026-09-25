@@ -4,7 +4,7 @@ const windows = require("./windows");
 
 let inputWindowRef = null;
 
-const SELF_APPS = new Set(["mickey", "Mickey", "Electron", "Mily"]);
+const SELF_APPS = new Set(["mily", "Mily", "Electron", "mickey", "Mickey"]);
 
 function setInputWindow(window) {
   inputWindowRef = window;

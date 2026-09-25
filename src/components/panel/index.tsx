@@ -40,6 +40,7 @@ export const Panel: React.FC = () => {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [chatModel, setChatModel] = useState('');
   const [sttModel, setSttModel] = useState('');
+  const [sttLanguage, setSttLanguage] = useState('auto');
 
   const [prompt, setPrompt] = useState('');
   const [promptHint, setPromptHint] = useState<'idle' | 'saving' | 'saved'>('idle');
@@ -75,6 +76,7 @@ export const Panel: React.FC = () => {
         if (Array.isArray(settings.providers)) setProviders(settings.providers);
         if (settings.chatModel) setChatModel(settings.chatModel);
         if (settings.sttModel) setSttModel(settings.sttModel);
+        if (settings.sttLanguage) setSttLanguage(settings.sttLanguage);
       }
       if (typeof sysPrompt === 'string') {
         setPrompt(sysPrompt);
@@ -381,6 +383,19 @@ export const Panel: React.FC = () => {
                   {showKey ? <EyeOff size={13} /> : <Eye size={13} />}
                 </button>
               </div>
+            </section>
+
+            <section style={s.section}>
+              <label style={s.label} htmlFor="voice-language">Spoken language</label>
+              <select id="voice-language" value={sttLanguage} onChange={async (e) => {
+                const language = e.target.value;
+                await ipc.invoke('set-stt-language', language);
+                setSttLanguage(language);
+              }} style={s.select}>
+                {Object.entries({ auto: 'Auto-detect', en: 'English', hi: 'Hindi', bn: 'Bengali', es: 'Spanish', fr: 'French', de: 'German', ja: 'Japanese', zh: 'Chinese' }).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
             </section>
 
             <div style={s.modelRow}>

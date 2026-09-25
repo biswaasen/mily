@@ -68,6 +68,7 @@ function setupIpcHandlers(configObj) {
     provider: store.getProvider(),
     chatModel: store.getChatModel(),
     sttModel: store.getSttModel(),
+    sttLanguage: store.getSttLanguage(),
     providers: store.listProviders(),
     apiKey: store.getGroqApiKey() || "",
   }));
@@ -77,6 +78,10 @@ function setupIpcHandlers(configObj) {
   });
   ipcMain.handle("set-chat-model", (_, model) => {
     store.setChatModel(model);
+    return true;
+  });
+  ipcMain.handle("set-stt-language", (_, language) => {
+    store.setSttLanguage(language);
     return true;
   });
   ipcMain.handle("set-stt-model", (_, model) => {

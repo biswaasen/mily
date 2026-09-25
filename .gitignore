@@ -34,3 +34,13 @@ lerna-debug.log*
 
 # misc
 .DS_Store
+
+# Local credentials and generated native helper
+.env.*
+!.env.example
+*.p12
+*.p8
+*.pem
+native/fn-listener
+native/fn-listener-arm64
+native/fn-listener-x86_64

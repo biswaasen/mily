@@ -30,20 +30,20 @@ let callback: CGEventTapCallBack = { _, type, event, _ in
   }
 
   let flags = event.flags
+  let isFnDownNow = flags.contains(.maskSecondaryFn)
+  if !isFnDownNow && fnIsDown {
+    fnIsDown = false
+    emit("FN_UP")
+    return nil
+  }
   let otherModifiers: CGEventFlags = [.maskCommand, .maskAlternate, .maskControl, .maskShift]
   if !flags.intersection(otherModifiers).isEmpty {
     return Unmanaged.passUnretained(event)
   }
 
-  let isFnDownNow = flags.contains(.maskSecondaryFn)
   if isFnDownNow && !fnIsDown {
     fnIsDown = true
     emit("FN_DOWN")
-    return nil
-  }
-  if !isFnDownNow && fnIsDown {
-    fnIsDown = false
-    emit("FN_UP")
     return nil
   }
   return Unmanaged.passUnretained(event)

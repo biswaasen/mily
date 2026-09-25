@@ -25,24 +25,24 @@ async function uploadToVercel() {
   const filePatterns = [
     {
       arch: 'arm64',
-      dmg: `mickey-${version}-arm64.dmg`,
-      zip: `mickey-${version}-arm64-mac.zip`,
-      dmgBlockmap: `mickey-${version}-arm64.dmg.blockmap`,
-      zipBlockmap: `mickey-${version}-arm64-mac.zip.blockmap`
+      dmg: `mily-${version}-arm64.dmg`,
+      zip: `mily-${version}-arm64-mac.zip`,
+      dmgBlockmap: `mily-${version}-arm64.dmg.blockmap`,
+      zipBlockmap: `mily-${version}-arm64-mac.zip.blockmap`
     },
     {
       arch: 'x64',
-      dmg: `mickey-${version}-x64.dmg`,
-      zip: `mickey-${version}-x64-mac.zip`,
-      dmgBlockmap: `mickey-${version}-x64.dmg.blockmap`,
-      zipBlockmap: `mickey-${version}-x64-mac.zip.blockmap`
+      dmg: `mily-${version}-x64.dmg`,
+      zip: `mily-${version}-x64-mac.zip`,
+      dmgBlockmap: `mily-${version}-x64.dmg.blockmap`,
+      zipBlockmap: `mily-${version}-x64-mac.zip.blockmap`
     },
     {
       arch: 'x64',
-      dmg: `mickey-${version}.dmg`,
-      zip: `mickey-${version}-mac.zip`,
-      dmgBlockmap: `mickey-${version}.dmg.blockmap`,
-      zipBlockmap: `mickey-${version}-mac.zip.blockmap`
+      dmg: `mily-${version}.dmg`,
+      zip: `mily-${version}-mac.zip`,
+      dmgBlockmap: `mily-${version}.dmg.blockmap`,
+      zipBlockmap: `mily-${version}-mac.zip.blockmap`
     }
   ];
 
@@ -141,7 +141,7 @@ async function uploadToVercel() {
     const results = await Promise.all(uploadPromises);
 
     console.log('\n✓ All files uploaded successfully!');
-    console.log(`Update URL: https://k26riqmsptuevwtz.public.blob.vercel-storage.com/${ymlFile}`);
+    console.log(`Update URL: ${results.find(file => file.file === ymlFile).url}`);
   } catch (error) {
     console.error('Upload failed:', error.message);
     process.exit(1);

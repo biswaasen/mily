@@ -1,14 +1,16 @@
 const { autoUpdater } = require('electron-updater');
-const { ipcMain } = require('electron');
+const { app, ipcMain } = require('electron');
 const windows = require('../windows');
 
 let updateCheckInterval = null;
+let updatesEnabled = false;
 
 function setupAutoUpdater() {
   const { loadConfig } = require('../config/config-loader');
   const config = loadConfig();
   
-  if (config.UPDATE_URL) {
+  updatesEnabled = app.isPackaged && Boolean(config.UPDATE_URL);
+  if (updatesEnabled) {
     autoUpdater.setFeedURL({
       provider: 'generic',
       url: config.UPDATE_URL
@@ -50,13 +52,14 @@ function setupAutoUpdater() {
 }
 
 function checkForUpdates() {
-  if (process.env.NODE_ENV === 'development') {
+  if (!updatesEnabled || process.env.NODE_ENV === 'development') {
     return;
   }
   autoUpdater.checkForUpdates().catch(() => {});
 }
 
 function startPeriodicUpdateCheck() {
+  if (!updatesEnabled) return;
   if (updateCheckInterval) {
     clearInterval(updateCheckInterval);
   }
@@ -74,10 +77,12 @@ function setupIpcHandlers() {
   });
 
   ipcMain.on('download-update', () => {
+    if (!updatesEnabled) return;
     autoUpdater.downloadUpdate().catch(() => {});
   });
 
   ipcMain.on('install-update', () => {
+    if (!updatesEnabled) return;
     const { app } = require('electron');
     app.isQuitting = true;
     autoUpdater.quitAndInstall(false, true);

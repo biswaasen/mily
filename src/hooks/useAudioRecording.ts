@@ -27,6 +27,8 @@ export const useAudioRecording = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const statusRef = useRef<RecordingStatus>('idle');
   const isCancelledRef = useRef<boolean>(false);
+  const startingRef = useRef(false);
+  const operationRef = useRef(0);
   const barsRef = useRef<(HTMLDivElement | null)[]>([]);
   const waveAnimationRef = useRef<number | null>(null);
 
@@ -55,135 +57,109 @@ export const useAudioRecording = () => {
     return result;
   };
 
-  const startRecording = async () => {
-    if (statusRef.current !== 'idle') return;
+  const startRecording = async (targetApp = '') => {
+    if (statusRef.current !== 'idle' || startingRef.current) return;
+    const operation = ++operationRef.current;
+    startingRef.current = true;
+    isCancelledRef.current = false;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Fn may have been released while the permission dialog was open.
+      if (operation !== operationRef.current) {
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
+      startingRef.current = false;
       streamRef.current = stream;
       audioChunksRef.current = [];
       setStatus('recording');
       statusRef.current = 'recording';
       playRecordingFeedback();
-      const capturedContext = context.trim();
-
+      const capturedContext = targetApp || context.trim();
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = mediaRecorder;
-
-      const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-      const audioContext = new AudioContextClass();
+      const audioContext = new AudioContext();
       const analyser = audioContext.createAnalyser();
       const source = audioContext.createMediaStreamSource(stream);
-
       analyser.fftSize = 256;
       analyser.smoothingTimeConstant = 0.5;
       analyser.minDecibels = -90;
       analyser.maxDecibels = -10;
-
       source.connect(analyser);
       audioContextRef.current = audioContext;
       analyserRef.current = analyser;
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        if (isCancelledRef.current) {
-          isCancelledRef.current = false;
-          cleanup();
-          setStatus('idle');
-          statusRef.current = 'idle';
-          audioChunksRef.current = [];
-          return;
+        if (operation === operationRef.current && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
-
-        if (audioChunksRef.current.length > 0) {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-
-          if (audioBlob.size > 5000) {
-            playRecordingFeedback();
-            setStatus('processing');
-            statusRef.current = 'processing';
-            ipcRenderer.send('processing');
-
-            try {
-              const result = await sendAudioToGroq(audioBlob, capturedContext);
-              ipcRenderer.send('http-result', {
-                response: result.response,
-                action: result.action,
-                transcription: result.transcription,
-              });
-              setTimeout(() => { cleanup(); setContext(''); }, 100);
-            } catch (error) {
-              const msg = error instanceof Error ? error.message : 'Failed to process audio. Please try again.';
-              setErrorMessage(msg);
-              setStatus('idle');
-              statusRef.current = 'idle';
-              setTimeout(() => setErrorMessage(''), 5000);
-            }
-          } else {
-            cleanup();
-            setStatus('idle');
-            statusRef.current = 'idle';
-            setContext('');
-          }
-        } else {
-          cleanup();
+      };
+      mediaRecorder.onstop = async () => {
+        if (operation !== operationRef.current) return;
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        audioChunksRef.current = [];
+        // Stop microphone capture before any network request, including failures.
+        cleanup();
+        if (audioBlob.size <= 5000) {
           setStatus('idle');
           statusRef.current = 'idle';
           setContext('');
+          return;
         }
-
-        audioChunksRef.current = [];
+        playRecordingFeedback();
+        setStatus('processing');
+        statusRef.current = 'processing';
+        ipcRenderer.send('processing');
+        try {
+          const result = await sendAudioToGroq(audioBlob, capturedContext);
+          if (operation !== operationRef.current) return;
+          ipcRenderer.send('http-result', {
+            response: result.response,
+            action: result.action,
+            transcription: result.transcription,
+          });
+          setContext('');
+        } catch (error) {
+          if (operation !== operationRef.current) return;
+          const msg = error instanceof Error ? error.message : 'Failed to process audio. Please try again.';
+          setErrorMessage(msg);
+          setStatus('idle');
+          statusRef.current = 'idle';
+          setTimeout(() => setErrorMessage(''), 5000);
+        }
       };
-
       mediaRecorder.start(100);
     } catch (error) {
+      if (operation !== operationRef.current) return;
+      startingRef.current = false;
+      cleanup();
       setStatus('idle');
       statusRef.current = 'idle';
       setErrorMessage('Microphone access is required. Please enable it in system settings.');
-      setTimeout(() => setErrorMessage(''), 1500);
-      try { await ipcRenderer.invoke('reset-onboarding'); } catch {}
+      setTimeout(() => setErrorMessage(''), 5000);
     }
   };
 
   const stopRecording = () => {
+    if (startingRef.current) {
+      ++operationRef.current;
+      startingRef.current = false;
+    }
     if (mediaRecorderRef.current && statusRef.current === 'recording') {
-      mediaRecorderRef.current.stop();
+      if (mediaRecorderRef.current.state !== 'inactive') mediaRecorderRef.current.stop();
       mediaRecorderRef.current = null;
     }
   };
 
   const cancelRecording = useCallback(() => {
-    isCancelledRef.current = true;
-
-    if (statusRef.current === 'recording') {
-      audioChunksRef.current = [];
-      if (mediaRecorderRef.current) {
-        mediaRecorderRef.current.stop();
-        mediaRecorderRef.current = null;
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-      cleanup();
-      setStatus('idle');
-      statusRef.current = 'idle';
-      isCancelledRef.current = false;
-      return;
-    }
-
-    if (statusRef.current === 'processing') {
-      ipcRenderer.send('cancel-processing');
-      cleanup();
-      setStatus('idle');
-      statusRef.current = 'idle';
-      isCancelledRef.current = false;
-      return;
-    }
-
+    ++operationRef.current;
+    startingRef.current = false;
+    audioChunksRef.current = [];
+    const recorder = mediaRecorderRef.current;
+    mediaRecorderRef.current = null;
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    ipcRenderer.send('cancel-processing');
     cleanup();
     setStatus('idle');
     statusRef.current = 'idle';
@@ -216,18 +192,18 @@ export const useAudioRecording = () => {
 
     const handleToggleRecording = async (_event: any, _targetApp: string) => {
       if (statusRef.current === 'idle') {
-        await startRecording();
+        await startRecording(_targetApp);
       } else if (statusRef.current === 'recording') {
         stopRecording();
       }
     };
 
-    const handleStartRecording = async () => {
-      if (statusRef.current === 'idle') await startRecording();
+    const handleStartRecording = async (_event: any, targetApp: string) => {
+      if (statusRef.current === 'idle') await startRecording(targetApp);
     };
 
     const handleStopRecording = () => {
-      if (statusRef.current === 'recording') stopRecording();
+      stopRecording();
     };
 
     const handleCancelRecording = () => {
@@ -250,6 +226,8 @@ export const useAudioRecording = () => {
       ipcRenderer.removeListener('start-recording', handleStartRecording);
       ipcRenderer.removeListener('stop-recording', handleStopRecording);
       ipcRenderer.removeListener('cancel-recording', handleCancelRecording);
+      ++operationRef.current;
+      startingRef.current = false;
       cleanup();
     };
   }, [ipcRenderer, cancelRecording]);

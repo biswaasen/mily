@@ -33,7 +33,7 @@ function setupMenus() {
 }
 
 function initializeApp() {
-  app.setName("mickey");
+  app.setName("mily");
   store.migrateFromLegacy();
 
   if (process.platform === "darwin" && app.dock) app.dock.hide();

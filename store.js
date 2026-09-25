@@ -46,7 +46,7 @@ const PROVIDERS = {
 };
 
 const store = new Store({
-  name: "mickey-config",
+  name: "mily-config",
   defaults: {
     onboardingCompleted: false,
     shortcutKey: "d",
@@ -54,6 +54,7 @@ const store = new Store({
     provider: DEFAULT_PROVIDER,
     chatModel: DEFAULT_CHAT_MODEL,
     sttModel: DEFAULT_STT_MODEL,
+    sttLanguage: "auto",
     userName: null,
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
     memories: [],
@@ -71,6 +72,10 @@ function migrateFromLegacy() {
       const path = require("path");
       const userData = app.getPath("userData");
       const candidates = [
+        path.join(userData, "mickey-config.json"),
+        path.join(userData, "..", "mickey", "mickey-config.json"),
+        path.join(userData, "..", "Mickey", "mickey-config.json"),
+        path.join(userData, "..", "Electron", "mickey-config.json"),
         path.join(userData, "mily-config.json"),
         path.join(userData, "..", "mily", "mily-config.json"),
         path.join(userData, "..", "Mily", "mily-config.json"),
@@ -80,7 +85,7 @@ function migrateFromLegacy() {
         if (!fs.existsSync(oldPath)) continue;
         const old = JSON.parse(fs.readFileSync(oldPath, "utf8"));
         [
-          "groqApiKey", "provider", "chatModel", "sttModel", "userName", "systemPrompt",
+          "groqApiKey", "provider", "chatModel", "sttModel", "sttLanguage", "userName", "systemPrompt",
           "memories", "links", "messages", "buddyPosition", "onboardingCompleted", "shortcutKey",
         ].forEach((k) => {
           if (old[k] !== undefined && old[k] !== null) store.set(k, old[k]);
@@ -101,6 +106,14 @@ function migrateDeprecatedModels() {
 
 const getOnboardingCompleted = () => store.get("onboardingCompleted");
 const setOnboardingCompleted = (value) => store.set("onboardingCompleted", value);
+const getSttLanguage = () => store.get("sttLanguage") || "auto";
+const setSttLanguage = (language) => {
+  if (!["auto", "en", "hi", "bn", "es", "fr", "de", "ja", "zh"].includes(language)) {
+    throw new Error("Unsupported transcription language");
+  }
+  store.set("sttLanguage", language);
+};
+
 const getShortcutKey = () => store.get("shortcutKey") || "d";
 const setShortcutKey = (key) => store.set("shortcutKey", key);
 
@@ -158,6 +171,7 @@ const setBuddyPosition = (pos) => store.set("buddyPosition", pos);
 const clearAll = () => {
   store.set("groqApiKey", null);
   store.set("provider", DEFAULT_PROVIDER);
+  store.set("sttLanguage", "auto");
   store.set("chatModel", DEFAULT_CHAT_MODEL);
   store.set("sttModel", DEFAULT_STT_MODEL);
   store.set("userName", null);
@@ -184,6 +198,8 @@ module.exports = {
   setProvider,
   getChatModel,
   setChatModel,
+  getSttLanguage,
+  setSttLanguage,
   getSttModel,
   setSttModel,
   getProviderConfig,

@@ -1,16 +1,18 @@
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const BUCKET = 'gs://mickey-releases';
-const PUBLIC_URL = 'https://storage.googleapis.com/mickey-releases';
+require('dotenv').config({ quiet: true });
+const BUCKET = process.env.GCS_BUCKET;
+if (!/^gs:\/\/[a-z0-9][a-z0-9._-]+$/.test(BUCKET || '')) {
+  throw new Error('Set GCS_BUCKET to your own gs://bucket-name before uploading.');
+}
+const PUBLIC_URL = `https://storage.googleapis.com/${BUCKET.slice(5)}`;
 
 function gcsUpload(localPath, remoteName, contentType) {
   const dest = `${BUCKET}/${remoteName}`;
-  execSync(
-    `gcloud storage cp "${localPath}" "${dest}" --content-type="${contentType}"`,
-    { stdio: 'inherit' }
-  );
+  execFileSync('gcloud', ['storage', 'cp', localPath, dest, `--content-type=${contentType}`],
+    { stdio: 'inherit' });
   console.log(`✓ Uploaded ${remoteName} → ${PUBLIC_URL}/${remoteName}`);
 }
 
@@ -27,22 +29,22 @@ async function uploadToGcs() {
 
   const filePatterns = [
     {
-      dmg: `mickey-${version}-arm64.dmg`,
-      zip: `mickey-${version}-arm64-mac.zip`,
-      dmgBlockmap: `mickey-${version}-arm64.dmg.blockmap`,
-      zipBlockmap: `mickey-${version}-arm64-mac.zip.blockmap`,
+      dmg: `mily-${version}-arm64.dmg`,
+      zip: `mily-${version}-arm64-mac.zip`,
+      dmgBlockmap: `mily-${version}-arm64.dmg.blockmap`,
+      zipBlockmap: `mily-${version}-arm64-mac.zip.blockmap`,
     },
     {
-      dmg: `mickey-${version}-x64.dmg`,
-      zip: `mickey-${version}-x64-mac.zip`,
-      dmgBlockmap: `mickey-${version}-x64.dmg.blockmap`,
-      zipBlockmap: `mickey-${version}-x64-mac.zip.blockmap`,
+      dmg: `mily-${version}-x64.dmg`,
+      zip: `mily-${version}-x64-mac.zip`,
+      dmgBlockmap: `mily-${version}-x64.dmg.blockmap`,
+      zipBlockmap: `mily-${version}-x64-mac.zip.blockmap`,
     },
     {
-      dmg: `mickey-${version}.dmg`,
-      zip: `mickey-${version}-mac.zip`,
-      dmgBlockmap: `mickey-${version}.dmg.blockmap`,
-      zipBlockmap: `mickey-${version}-mac.zip.blockmap`,
+      dmg: `mily-${version}.dmg`,
+      zip: `mily-${version}-mac.zip`,
+      dmgBlockmap: `mily-${version}.dmg.blockmap`,
+      zipBlockmap: `mily-${version}-mac.zip.blockmap`,
     },
   ];
 
@@ -72,7 +74,7 @@ async function uploadToGcs() {
 
   filesToUpload.push({ name: ymlFile, path: ymlPath, type: 'application/x-yaml' });
 
-  console.log(`\nUploading ${filesToUpload.length} file(s) to GCS bucket [mickey-releases]...\n`);
+  console.log(`\nUploading ${filesToUpload.length} file(s) to GCS bucket [${BUCKET}]...\n`);
 
   for (const file of filesToUpload) {
     gcsUpload(file.path, file.name, file.type);

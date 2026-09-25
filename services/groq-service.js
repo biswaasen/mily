@@ -1,12 +1,5 @@
 const store = require("../store");
-const FormData = require("form-data");
 const localLinks = require("./local-links");
-
-let _fetch = null;
-async function getFetch() {
-  if (!_fetch) _fetch = (await import("node-fetch")).default;
-  return _fetch;
-}
 
 function extractJson(text) {
   if (!text) return null;
@@ -24,23 +17,23 @@ function extractJson(text) {
 }
 
 async function transcribeAudio(audioBuffer, apiKey) {
-  const fetch = await getFetch();
   const cfg = store.getProviderConfig();
   const sttModel = store.getSttModel();
 
   const form = new FormData();
-  form.append("file", audioBuffer, {
-    filename: "audio.webm",
-    contentType: "audio/webm",
-  });
+  form.append("file", new Blob([audioBuffer], { type: "audio/webm" }), "audio.webm");
   form.append("model", sttModel);
   form.append("response_format", "json");
+  const language = store.getSttLanguage();
+  if (language !== "auto") form.append("language", language);
+  // Keep vocabulary hints concise; the speech API has a limited prompt window.
+  const words = store.getMemories().map(word => word.content).filter(Boolean).join(", ").slice(0, 500);
+  if (words) form.append("prompt", words);
 
   const response = await fetch(`${cfg.baseUrl}/audio/transcriptions`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      ...form.getHeaders(),
     },
     body: form,
   });
@@ -55,7 +48,6 @@ async function transcribeAudio(audioBuffer, apiKey) {
 }
 
 async function chatCompletion(transcription, context, apiKey) {
-  const fetch = await getFetch();
   const cfg = store.getProviderConfig();
   const chatModel = store.getChatModel();
 
@@ -82,6 +74,8 @@ async function chatCompletion(transcription, context, apiKey) {
     systemContent += `\n\nUser words (spellings, names, Hindi/English terms):\n${memoryLines}`;
   }
 
+  systemContent += "\n\nPreserve the speaker's language and normal sentence capitalization. Use the exact saved spellings for matching names. Return one JSON object with string fields intent, text, link, and app. Never return prose outside the JSON. Websites are not installed macOS apps; use a saved link for a website, or transcribe if no link matches. Opening a link does not play videos or perform browser actions.";
+
   const userContent = context
     ? `[Current app: ${context}]\nUser said: "${transcription}"`
     : `User said: "${transcription}"`;
@@ -99,28 +93,36 @@ async function chatCompletion(transcription, context, apiKey) {
         { role: "user", content: userContent },
       ],
       temperature: 0.1,
-      max_tokens: 1024,
+      max_completion_tokens: 4096,
       response_format: { type: "json_object" },
     }),
   });
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
+    if (err.error?.code === "json_validate_failed" || /failed to generate json/i.test(err.error?.message || "")) {
+      return { response: transcription, action: null };
+    }
     throw new Error(err.error?.message || `Chat failed: ${response.status}`);
   }
 
   const data = await response.json();
   const raw = (data.choices?.[0]?.message?.content || "").trim();
   const parsed = extractJson(raw);
+  const fallback = { response: transcription, action: null };
+  if (data.choices?.[0]?.finish_reason === "length") return fallback;
 
-  if (!parsed || typeof parsed !== "object") {
-    return { response: raw.replace(/^["']|["']$/g, ""), action: null };
-  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return fallback;
 
-  const intent = (parsed.intent || "transcript").toLowerCase();
+  if (typeof parsed.intent !== "string") return fallback;
+  const intent = parsed.intent.toLowerCase();
+  if (!["transcript", "open_link", "open_app"].includes(intent)) return fallback;
+  if (typeof parsed.text !== "string") return fallback;
 
   if (intent === "open_link") {
-    const match = localLinks.findLinkByName(parsed.link || parsed.name || "");
+    const name = parsed.link || parsed.name;
+    if (typeof name !== "string") return fallback;
+    const match = localLinks.findLinkByName(name);
     if (match) {
       return {
         response: "",
@@ -133,7 +135,7 @@ async function chatCompletion(transcription, context, apiKey) {
     };
   }
 
-  if (intent === "open_app" && parsed.app) {
+  if (intent === "open_app" && typeof parsed.app === "string" && parsed.app.trim()) {
     return {
       response: "",
       action: { action: "open_app", app: String(parsed.app).trim() },
@@ -152,7 +154,6 @@ async function processAudio(audioBuffer, context) {
 
   console.log("[AI] Transcribing audio...", audioBuffer.length, "bytes");
   const transcription = await transcribeAudio(audioBuffer, apiKey);
-  console.log("[AI] Transcription:", transcription);
 
   if (!transcription.trim()) {
     return { transcription: "", response: "", action: null };
@@ -160,7 +161,6 @@ async function processAudio(audioBuffer, context) {
 
   console.log("[AI] Resolving intent...");
   const parsed = await chatCompletion(transcription, context, apiKey);
-  console.log("[AI] Response:", parsed.response, "Action:", parsed.action);
 
   return {
     transcription,
@@ -170,7 +170,6 @@ async function processAudio(audioBuffer, context) {
 }
 
 async function verifyApiKey(apiKey) {
-  const fetch = await getFetch();
   const cfg = store.getProviderConfig();
   const response = await fetch(`${cfg.baseUrl}/models`, {
     headers: { Authorization: `Bearer ${apiKey}` },
