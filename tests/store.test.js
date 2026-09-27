@@ -16,6 +16,7 @@ function loadStore(initial = {}) {
         get(key) { return data[key]; } set(key, value) { data[key] = value; }
       } };
       if (name === 'electron') return { app: { getPath: () => '/settings/mily' } };
+      if (name === './services/action-prompt') return require('../services/action-prompt');
       if (name === 'path') return path;
       if (name === 'fs') return {
         existsSync: file => file === '/settings/mickey/mickey-config.json',
@@ -45,4 +46,18 @@ test('language setting persists and rejects unsupported values', () => {
   api.setSttLanguage('en');
   assert.equal(api.getSttLanguage(), 'en');
   assert.throws(() => api.setSttLanguage('invalid'), /Unsupported/);
+});
+test('custom prompt survives startup migration', () => {
+  const prompt = 'Keep my wording and punctuation preferences.';
+  const { api } = loadStore({ groqApiKey: 'current-key', systemPrompt: prompt });
+  api.migrateFromLegacy();
+  assert.equal(api.getSystemPrompt(), prompt);
+});
+test('previous built-in prompt upgrades to the new action definitions', () => {
+  const source = fs.readFileSync('store.js', 'utf8');
+  const legacy = source.match(/const LEGACY_SYSTEM_PROMPT = `([\s\S]*?)`;/)[1];
+  const { api } = loadStore({ groqApiKey: 'current-key', systemPrompt: legacy });
+  api.migrateFromLegacy();
+  assert.match(api.getSystemPrompt(), /play_youtube/);
+  assert.match(api.getSystemPrompt(), /search_google/);
 });

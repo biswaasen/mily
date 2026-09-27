@@ -13,18 +13,6 @@ const localMessages = require("../services/local-messages");
 function setupIpcHandlers(configObj) {
   systemCommands.setInputWindow(windows.getInputWindow());
 
-  // Force migrate to intent-router prompt
-  const currentPrompt = store.getSystemPrompt();
-  if (
-    !currentPrompt ||
-    currentPrompt.includes("transcription assistant") ||
-    currentPrompt.includes("ALWAYS respond with ONLY the JSON") ||
-    currentPrompt.includes("CRITICAL: Output ONLY the JSON") ||
-    !currentPrompt.includes("intent router")
-  ) {
-    store.resetSystemPrompt();
-  }
-
   auth.registerAuth(ipcMain);
   recording.setupRecordingHandlers(ipcMain);
   config.registerConfig(ipcMain, configObj);

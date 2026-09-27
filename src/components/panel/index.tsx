@@ -22,7 +22,7 @@ interface Msg {
   query?: string;
   response?: string;
   transcription?: string;
-  action?: { action?: string; url?: string; linkName?: string; app?: string } | null;
+  action?: { action?: string; url?: string; linkName?: string; app?: string; query?: string } | null;
 }
 
 export const Panel: React.FC = () => {
@@ -274,6 +274,9 @@ export const Panel: React.FC = () => {
                       {isAction
                         ? m.action?.action === 'open_url'
                           ? m.action.linkName || 'link'
+                          : m.action?.action === 'search_google' ? 'Google search'
+                          : m.action?.action === 'search_youtube' ? 'YouTube search'
+                          : m.action?.action === 'play_youtube' ? 'YouTube playback'
                           : m.action?.app || 'app'
                         : 'typed'}
                     </span>

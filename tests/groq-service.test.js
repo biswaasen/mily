@@ -18,7 +18,7 @@ function service(chatResponse, overrides = {}) {
   const module = { exports: {} };
   vm.runInNewContext(fs.readFileSync('services/groq-service.js', 'utf8'), {
     module, Blob, FormData, console: { log() {} },
-    require: name => name === '../store' ? store : {
+    require: name => name === './action-prompt' ? require('../services/action-prompt') : name === './web-actions' ? require('../services/web-actions') : name === '../store' ? store : {
       findLinkByName: name => store.getLinks().find(link => link.name === name),
     },
     fetch: async (url, options) => {
@@ -80,3 +80,22 @@ test('authentication failures remain visible', async () => {
   const { api } = service({ ok: false, status: 401, json: async () => ({ error: { message: 'Invalid API key' } }) });
   await assert.rejects(api.processAudio(Buffer.from('audio'), 'Editor'), /Invalid API key/);
 });
+for (const intent of ['search_google', 'search_youtube', 'play_youtube']) {
+  test(`${intent} returns a structured action without model-supplied URLs`, async () => {
+    const { api, requests } = service(response(JSON.stringify({ intent, text: '', query: 'MrBeast & friends', url: 'https://untrusted.test' })));
+    const result = await api.processAudio(Buffer.from('audio'), 'Editor');
+    assert.equal(result.action.action, intent);
+    assert.equal(result.action.query, 'MrBeast & friends');
+    assert.equal(result.action.url, undefined);
+    assert.equal(result.response, '');
+    assert.match(JSON.parse(requests[1].options.body).messages[0].content, /Available actions and response contract/);
+  });
+  for (const query of ['', '  ', 42, null, 'x'.repeat(2001)]) {
+    test(`${intent} rejects invalid query ${String(query).slice(0, 12)}`, async () => {
+      const { api } = service(response(JSON.stringify({ intent, text: '', query })));
+      const result = await api.processAudio(Buffer.from('audio'), 'Editor');
+      assert.equal(result.action, null);
+      assert.equal(result.response, 'Hello Biswarup.');
+    });
+  }
+}

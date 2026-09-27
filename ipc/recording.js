@@ -60,8 +60,9 @@ function registerShortcut() {
 
 function setupRecordingHandlers(ipcMainRef) {
   ipcMainRef.on("http-result", async (_, result) => {
-    const operationId = Date.now().toString();
-    activeProcessingOps.set(operationId, true);
+    const operationId = Symbol("action");
+    const controller = new AbortController();
+    activeProcessingOps.set(operationId, controller);
     const input = windows.getSafeInputWindow();
     if (input) input.webContents.send("http-result", result);
 
@@ -73,9 +74,9 @@ function setupRecordingHandlers(ipcMainRef) {
 
     try {
       const action = result?.action;
-      if (action && (action.action === "open_url" || action.action === "open_app")) {
-        systemCommands.executeSystemCommand(action);
-        setTimeout(sendComplete, 80);
+      if (action && (["open_url", "open_app", "search_google", "search_youtube", "play_youtube"].includes(action.action))) {
+        await systemCommands.executeSystemCommand(action, { signal: controller.signal });
+        if (activeProcessingOps.has(operationId)) sendComplete();
         return;
       }
 
@@ -91,6 +92,8 @@ function setupRecordingHandlers(ipcMainRef) {
         setTimeout(sendComplete, 50);
       }
     } catch (error) {
+      if (!activeProcessingOps.has(operationId)) return;
+      activeProcessingOps.delete(operationId);
       if (input) {
         input.webContents.send("error", error.message || "Failed to process result");
         input.webContents.send("processing-complete");
@@ -100,6 +103,7 @@ function setupRecordingHandlers(ipcMainRef) {
   });
 
   ipcMainRef.on("cancel-processing", () => {
+    for (const controller of activeProcessingOps.values()) controller.abort();
     activeProcessingOps.clear();
     const input = windows.getSafeInputWindow();
     if (input) input.webContents.send("processing-complete");

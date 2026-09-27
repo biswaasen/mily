@@ -1,4 +1,6 @@
 const store = require("../store");
+const { ACTION_CONTRACT } = require("./action-prompt");
+const { searchUrl } = require("./web-actions");
 const localLinks = require("./local-links");
 
 function extractJson(text) {
@@ -74,7 +76,7 @@ async function chatCompletion(transcription, context, apiKey) {
     systemContent += `\n\nUser words (spellings, names, Hindi/English terms):\n${memoryLines}`;
   }
 
-  systemContent += "\n\nPreserve the speaker's language and normal sentence capitalization. Use the exact saved spellings for matching names. Return one JSON object with string fields intent, text, link, and app. Never return prose outside the JSON. Websites are not installed macOS apps; use a saved link for a website, or transcribe if no link matches. Opening a link does not play videos or perform browser actions.";
+  if (!systemContent.includes(ACTION_CONTRACT)) systemContent += `\n\n${ACTION_CONTRACT}`;
 
   const userContent = context
     ? `[Current app: ${context}]\nUser said: "${transcription}"`
@@ -116,8 +118,13 @@ async function chatCompletion(transcription, context, apiKey) {
 
   if (typeof parsed.intent !== "string") return fallback;
   const intent = parsed.intent.toLowerCase();
-  if (!["transcript", "open_link", "open_app"].includes(intent)) return fallback;
+  if (!["transcript", "open_link", "open_app", "search_google", "search_youtube", "play_youtube"].includes(intent)) return fallback;
   if (typeof parsed.text !== "string") return fallback;
+
+  if (["search_google", "search_youtube", "play_youtube"].includes(intent)) {
+    try { searchUrl(intent, parsed.query); } catch { return fallback; }
+    return { response: "", action: { action: intent, query: parsed.query.trim() } };
+  }
 
   if (intent === "open_link") {
     const name = parsed.link || parsed.name;

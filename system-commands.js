@@ -1,5 +1,5 @@
 const { clipboard, shell } = require("electron");
-const { exec } = require("child_process");
+const { exec, execFile } = require("child_process");
 const windows = require("./windows");
 
 let inputWindowRef = null;
@@ -135,26 +135,27 @@ function takeScreenshot(type = "full") {
   });
 }
 
-function executeSystemCommand(command) {
+async function executeSystemCommand(command, { signal } = {}) {
+  if (["search_google", "search_youtube", "play_youtube"].includes(command.action)) {
+    const { executeWebAction } = require("./services/web-actions");
+    await executeWebAction(command, { signal, openExternal: url => shell.openExternal(url) });
+    return;
+  }
   if (command.action === "open_url") {
-    if (command.url) {
-      shell.openExternal(command.url).catch(() => sendError("Failed to open URL"));
-    } else {
-      sendError("No URL provided");
-    }
+    const url = new URL(command.url);
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error("Only web links can be opened");
+    if (!signal?.aborted) await shell.openExternal(url.toString());
     return;
   }
   if (command.action === "open_app") {
-    if (command.app) {
-      const script = `tell application "${safeAppName(command.app)}"
-          activate
-        end tell`;
-      exec(`osascript -e '${escapeForShell(script)}'`, (error) => {
-        if (error) sendError(`Failed to open ${command.app}. Make sure the app is installed.`);
+    if (typeof command.app !== "string" || !command.app.trim()) throw new Error("No app name provided");
+    if (signal?.aborted) return;
+    await new Promise((resolve, reject) => {
+      execFile('open', ['-a', command.app.trim()], error => {
+        if (error) reject(new Error(`Failed to open ${command.app}. Make sure the app is installed.`));
+        else resolve();
       });
-    } else {
-      sendError("No app name provided");
-    }
+    });
     return;
   }
   if (command.action === "press_key") {

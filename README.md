@@ -62,7 +62,15 @@ In **Links**, enter a name and URL, then click **+**. Hold Fn and say **â€œOpenâ
   <img src="docs/images/links.png" width="400" alt="Links showing name and URL inputs and saved links">
 </p>
 
-Saved links open in your browser. Mily does not search websites or play videos for you. The screenshot contains example links; this repository is **biswaasen/mily**.
+Saved links open in your browser. The screenshot contains example links; this repository is **biswaasen/mily**.
+
+### Search and video commands
+
+- Ask to **search Google** for a topic to open web results.
+- Ask to **search YouTube** for a topic or creator to browse videos.
+- Ask to **play a video on YouTube** to try opening the first matching video. If lookup is unavailable, Mily opens search results. Your browser may require a click to start playback.
+
+No separate backend or additional API key is needed. These commands open pages; they do not read results, summarize pages, or control an existing browser tab.
 
 ## 5. Add custom words
 

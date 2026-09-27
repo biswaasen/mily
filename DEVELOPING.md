@@ -70,3 +70,11 @@ Before a release, update the version with `npm version patch --no-git-tag-versio
 - **Text does not paste:** focus an editable field and check Accessibility/Automation permissions.
 - **API errors:** verify the key, provider account quota, and configured models in Provider settings. Model defaults are in `store.js`.
 - **Native module or CPU mismatch:** run `npm ci` and `npm run build:fn` on the target Mac; do not copy `node_modules` between architectures.
+
+## Voice actions
+
+`services/action-prompt.js` defines the generic action descriptions and JSON contract. The contract is also appended to custom prompts, so supported actions stay discoverable. Startup replaces only the exact previous built-in prompt; custom prompts are preserved. Use Settings → Prompt → default to restore the latest full prompt.
+
+`services/groq-service.js` validates intents and query types. `services/web-actions.js` builds Google/YouTube search URLs locally with encoded query parameters; the model never supplies executable URLs or scripts. `ipc/recording.js` awaits execution and aborts pending lookup when Escape is pressed. History records the requested action, not a guarantee of browser playback.
+
+For YouTube playback, a temporary hidden [Electron BrowserWindow](https://www.electronjs.org/docs/latest/api/browser-window) reads the first video-result link. It uses a sandbox, context isolation, no Node integration, an in-memory session, denied permissions, and a 12-second timeout. Only validated YouTube watch URLs are opened. Consent screens, network failures or changed YouTube markup fall back to search results. Browser autoplay restrictions still apply. This lookup sends the search terms to YouTube; Google/YouTube searches open in the user's default browser. No private browser cookies are imported.

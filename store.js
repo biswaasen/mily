@@ -1,6 +1,6 @@
 const Store = require("electron-store").default;
 
-const DEFAULT_SYSTEM_PROMPT = `You are a voice intent router for a desktop assistant.
+const LEGACY_SYSTEM_PROMPT = `You are a voice intent router for a desktop assistant.
 
 Given what the user said (transcription), decide ONE intent and reply with ONLY a JSON object (no markdown, no extra text):
 
@@ -18,6 +18,8 @@ Rules:
    - Return the cleaned text in "text". Leave link/app empty.
 4) Never invent URLs. For open_link you may ONLY use names from Saved links.
 5) If they say open/play but nothing matches Saved links and it is not clearly an app, use transcript with cleaned text.`;
+
+const { DEFAULT_SYSTEM_PROMPT } = require("./services/action-prompt");
 
 const DEFAULT_PROVIDER = "groq";
 const DEFAULT_CHAT_MODEL = "openai/gpt-oss-120b";
@@ -95,6 +97,7 @@ function migrateFromLegacy() {
     }
   } catch (_) {}
   migrateDeprecatedModels();
+  if (store.get("systemPrompt") === LEGACY_SYSTEM_PROMPT) resetSystemPrompt();
 }
 
 function migrateDeprecatedModels() {
