@@ -17,6 +17,7 @@ function loadStore(initial = {}) {
       } };
       if (name === 'electron') return { app: { getPath: () => '/settings/mily' } };
       if (name === './services/action-prompt') return require('../services/action-prompt');
+      if (name === 'crypto') return require('node:crypto');
       if (name === 'path') return path;
       if (name === 'fs') return {
         existsSync: file => file === '/settings/mickey/mickey-config.json',

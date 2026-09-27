@@ -97,7 +97,10 @@ function migrateFromLegacy() {
     }
   } catch (_) {}
   migrateDeprecatedModels();
-  if (store.get("systemPrompt") === LEGACY_SYSTEM_PROMPT) resetSystemPrompt();
+  const savedPrompt = store.get("systemPrompt");
+  const previousActionPrompt = typeof savedPrompt === "string" &&
+    require("crypto").createHash("sha256").update(savedPrompt).digest("hex") === "9f19b4346ac9dadb2705fc977875f39f1b907bbaacb0a7983ab3f08c35458de2";
+  if (savedPrompt === LEGACY_SYSTEM_PROMPT || previousActionPrompt) resetSystemPrompt();
 }
 
 function migrateDeprecatedModels() {

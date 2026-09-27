@@ -64,6 +64,8 @@ async function executeWebAction(action, { signal, openExternal, resolveVideo = f
   let target = url;
   if (action.action === 'play_youtube') target = await resolveVideo(url, signal) || url;
   if (signal?.aborted) return;
+  console.log("[Action] Opening:", target);
+  if (action.action === "play_youtube" && target === url) console.log("[Action] Video lookup unavailable; opening YouTube results");
   await openExternal(target);
 }
 

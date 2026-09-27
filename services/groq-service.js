@@ -1,3 +1,4 @@
+const { actionPolicy } = require("./intent-policy");
 const store = require("../store");
 const { ACTION_CONTRACT } = require("./action-prompt");
 const { searchUrl } = require("./web-actions");
@@ -50,6 +51,12 @@ async function transcribeAudio(audioBuffer, apiKey) {
 }
 
 async function chatCompletion(transcription, context, apiKey) {
+  const policy = actionPolicy(transcription);
+  console.log("[Intent] Mode:", policy.mode, "Reason:", policy.reason);
+  if (policy.directAction) {
+    console.log("[Intent] Selected: open_link (explicit website command)");
+    return { response: "", action: policy.directAction };
+  }
   const cfg = store.getProviderConfig();
   const chatModel = store.getChatModel();
 
@@ -78,6 +85,8 @@ async function chatCompletion(transcription, context, apiKey) {
 
   if (!systemContent.includes(ACTION_CONTRACT)) systemContent += `\n\n${ACTION_CONTRACT}`;
 
+  systemContent += `\n\nRuntime mode: ${policy.mode}. Allowed action intents: ${policy.allowed.join(", ") || "none"}. Always allow transcript. In transcription mode, clean the spoken text without interpreting or answering it.`;
+
   const userContent = context
     ? `[Current app: ${context}]\nUser said: "${transcription}"`
     : `User said: "${transcription}"`;
@@ -103,15 +112,18 @@ async function chatCompletion(transcription, context, apiKey) {
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     if (err.error?.code === "json_validate_failed" || /failed to generate json/i.test(err.error?.message || "")) {
+      console.log("[Intent] Selected: transcript (JSON generation failed)");
       return { response: transcription, action: null };
     }
     throw new Error(err.error?.message || `Chat failed: ${response.status}`);
   }
 
   const data = await response.json();
-  const raw = (data.choices?.[0]?.message?.content || "").trim();
+  const content = data.choices?.[0]?.message?.content;
+  const raw = typeof content === "string" ? content.trim() : "";
   const parsed = extractJson(raw);
   const fallback = { response: transcription, action: null };
+  console.log("[Intent] Model decision:", typeof parsed?.intent === "string" ? parsed.intent : "invalid response");
   if (data.choices?.[0]?.finish_reason === "length") return fallback;
 
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return fallback;
@@ -120,6 +132,10 @@ async function chatCompletion(transcription, context, apiKey) {
   const intent = parsed.intent.toLowerCase();
   if (!["transcript", "open_link", "open_app", "search_google", "search_youtube", "play_youtube"].includes(intent)) return fallback;
   if (typeof parsed.text !== "string") return fallback;
+  if (intent !== "transcript" && !policy.allowed.includes(intent)) {
+    console.log("[Intent] Blocked action:", intent, "— preserving transcription");
+    return fallback;
+  }
 
   if (["search_google", "search_youtube", "play_youtube"].includes(intent)) {
     try { searchUrl(intent, parsed.query); } catch { return fallback; }
@@ -161,6 +177,7 @@ async function processAudio(audioBuffer, context) {
 
   console.log("[AI] Transcribing audio...", audioBuffer.length, "bytes");
   const transcription = await transcribeAudio(audioBuffer, apiKey);
+  console.log("[AI] Transcription:", transcription);
 
   if (!transcription.trim()) {
     return { transcription: "", response: "", action: null };
@@ -168,6 +185,9 @@ async function processAudio(audioBuffer, context) {
 
   console.log("[AI] Resolving intent...");
   const parsed = await chatCompletion(transcription, context, apiKey);
+  console.log("[Intent] Final:", parsed.action?.action || "transcript");
+  if (parsed.action) console.log("[AI] Planned action:", JSON.stringify(parsed.action));
+  else console.log("[AI] Cleaned transcription:", parsed.response);
 
   return {
     transcription,

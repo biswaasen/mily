@@ -66,6 +66,8 @@ Saved links open in your browser. The screenshot contains example links; this re
 
 ### Search and video commands
 
+Normal speech is transcribed. Start an action with **open**, **search**, or **play**; polite prefixes such as “can you please” are supported. Mentioning Google or YouTube in a sentence does not trigger an action.
+
 - Ask to **search Google** for a topic to open web results.
 - Ask to **search YouTube** for a topic or creator to browse videos.
 - Ask to **play a video on YouTube** to try opening the first matching video. If lookup is unavailable, Mily opens search results. Your browser may require a click to start playback.

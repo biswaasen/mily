@@ -75,8 +75,12 @@ function setupRecordingHandlers(ipcMainRef) {
     try {
       const action = result?.action;
       if (action && (["open_url", "open_app", "search_google", "search_youtube", "play_youtube"].includes(action.action))) {
+        console.log("[Action] Executing:", JSON.stringify(action));
         await systemCommands.executeSystemCommand(action, { signal: controller.signal });
-        if (activeProcessingOps.has(operationId)) sendComplete();
+        if (activeProcessingOps.has(operationId)) {
+          console.log("[Action] Completed:", action.action);
+          sendComplete();
+        }
         return;
       }
 
@@ -92,6 +96,7 @@ function setupRecordingHandlers(ipcMainRef) {
         setTimeout(sendComplete, 50);
       }
     } catch (error) {
+      console.error("[Action] Failed:", error.message || error);
       if (!activeProcessingOps.has(operationId)) return;
       activeProcessingOps.delete(operationId);
       if (input) {
@@ -103,6 +108,7 @@ function setupRecordingHandlers(ipcMainRef) {
   });
 
   ipcMainRef.on("cancel-processing", () => {
+    if (activeProcessingOps.size) console.log("[Action] Cancelled pending actions");
     for (const controller of activeProcessingOps.values()) controller.abort();
     activeProcessingOps.clear();
     const input = windows.getSafeInputWindow();
