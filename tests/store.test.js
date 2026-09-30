@@ -20,7 +20,7 @@ function loadStore(initial = {}) {
       if (name === 'crypto') return require('node:crypto');
       if (name === 'path') return path;
       if (name === 'fs') return {
-        existsSync: file => file === '/settings/mickey/mickey-config.json',
+        existsSync: file => file === '/settings/mily/mily-config.json',
         readFileSync: () => JSON.stringify(old),
       };
       throw new Error(name);
@@ -29,7 +29,7 @@ function loadStore(initial = {}) {
   return { api: module.exports, data: () => data };
 }
 
-test('rename imports Mickey key, words and history into Mily', () => {
+test('rename imports mily key, words and history into Mily', () => {
   const { api, data } = loadStore();
   api.migrateFromLegacy();
   assert.equal(api.getGroqApiKey(), 'legacy-key');

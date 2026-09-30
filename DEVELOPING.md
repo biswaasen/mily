@@ -42,7 +42,7 @@ Mily sends recorded audio to Groq for transcription. It sends the transcript, cu
 
 Settings, the API key, and message history are stored locally using `electron-store`, without application-level encryption, typically at `~/Library/Application Support/mily/mily-config.json`. Development paths may differ. Console logs include the raw transcript, routing mode, model intent, final action or cleaned transcription, and execution status. Redact personal text and search queries before sharing logs. Pasting uses the system clipboard and macOS automation.
 
-Older `mickey-config.json` and legacy Mily settings are imported when the current store has no API key. Existing source files are left in place. The renamed bundle identifier is `com.mily.app`; macOS permissions may need to be granted again.
+Older `mily-config.json` and legacy Mily settings are imported when the current store has no API key. Existing source files are left in place. The renamed bundle identifier is `com.mily.app`; macOS permissions may need to be granted again.
 
 ## Packaging and releases
 

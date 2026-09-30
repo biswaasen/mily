@@ -74,10 +74,10 @@ function migrateFromLegacy() {
       const path = require("path");
       const userData = app.getPath("userData");
       const candidates = [
-        path.join(userData, "mickey-config.json"),
-        path.join(userData, "..", "mickey", "mickey-config.json"),
-        path.join(userData, "..", "Mickey", "mickey-config.json"),
-        path.join(userData, "..", "Electron", "mickey-config.json"),
+        path.join(userData, "mily-config.json"),
+        path.join(userData, "..", "mily", "mily-config.json"),
+        path.join(userData, "..", "mily", "mily-config.json"),
+        path.join(userData, "..", "Electron", "mily-config.json"),
         path.join(userData, "mily-config.json"),
         path.join(userData, "..", "mily", "mily-config.json"),
         path.join(userData, "..", "Mily", "mily-config.json"),
